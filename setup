@@ -1,0 +1,9 @@
+from pymongo import MongoClient
+import os
+
+def get_database():
+    MONGO_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
+    DB_NAME = os.getenv("DB_NAME", "flight_database")
+    
+    client = MongoClient(MONGO_URI)
+    return client[DB_NAME]
