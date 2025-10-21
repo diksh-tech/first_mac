@@ -1,0 +1,198 @@
+ File "C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp\venv6\Lib\site-packages\openai\lib\azure.py", line 199, in __init__
+    raise OpenAIError(
+        "Missing credentials. Please pass one of `api_key`, `azure_ad_token`, `azure_ad_token_provider`, or the `AZURE_OPENAI_API_KEY` or `AZURE_OPENAI_AD_TOKEN` environment variables."
+    )
+openai.OpenAIError: Missing credentials. Please pass one of `api_key`, `azure_ad_token`, `azure_ad_token_provider`, or the `AZURE_OPENAI_API_KEY` or `AZURE_OPENAI_AD_TOKEN` environment variables.
+(venv6) PS C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp>
+
+  File "C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp\venv6\Lib\site-packages\openai\lib\azure.py", line 199, in __init__
+    raise OpenAIError(
+        "Missing credentials. Please pass one of `api_key`, `azure_ad_token`, `azure_ad_token_provider`, or the `AZURE_OPENAI_API_KEY` or `AZURE_OPENAI_AD_TOKEN` environment variables."
+    )
+openai.OpenAIError: Missing credentials. Please pass one of `api_key`, `azure_ad_token`, `azure_ad_token_provider`, or the `AZURE_OPENAI_A  File "C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp\venv6\Lib\site-packages\openai\lib\azure.py", line 199, in __init__
+    raise OpenAIError(
+        "Missing credentials. Please pass one of `api_key`, `azure_ad_token`, `azure_ad_token_provider`, or the `AZURE_OPENAI_API_KEY` or `AZURE_OPENAI_AD_TOKEN` environment variables."
+  File "C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp\venv6\Lib\site-packages\openai\lib\azure.py", line 199, in __init__
+    raise OpenAIError(
+y", line 199, in __init__
+    raise OpenAIError(
+        "Missing credentials. Please pass one of `api_key`, `azure_ad_token`, `azure_ad_token_provider`, or the `AZURE_OPENAI_API_KEY` or     raise OpenAIError(
+        "Missing credentials. Please pass one of `api_key`, `azure_ad_token`, `azure_ad_token_provider`, or the `AZURE_OPENAI_API_KEY` or         "Missing credentials. Please pass one of `api_key`, `azure_ad_token`, `azure_ad_token_provider`, or the `AZURE_OPENAI_API_KEY` or `AZURE_OPENAI_AD_TOKEN` environment variables."
+`AZURE_OPENAI_AD_TOKEN` environment variables."
+    )
+openai.OpenAIError: Missing credentials. Please pass one of `api_key`, `azure_ad_token`, `azure_ad_token_provider`, or the `AZURE_OPENAI_API_KEY` or `AZURE_OPENAI_AD_TOKEN` environment variables.
+(venv6) PS C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp>
+
+
+
+
+
+                                                                                                    python flight_mcp_server.py   
+2025-10-21 15:57:18,371 - AzureOpenAIClient - ERROR - [azure_client.py:18] - Failed to initialize Azure OpenAI client: Missing credentials. Please pass one of `api_key`, `azure_ad_token`, `azure_ad_token_provider`, or the `AZURE_OPENAI_API_KEY` or `AZURE_OPENAI_AD_TOKEN` environment variables.
+Traceback (most recent call last):
+  File "C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp\flight_mcp_server.py", line 14, in <module>
+    azure_client = AzureOpenAIClient()
+  File "C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp\azure_client.py", line 10, in __init__    
+    self.client = AzureOpenAI(
+                  ~~~~~~~~~~~^
+        azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        api_key=os.getenv("AZURE_OPENAI_KEY"),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        api_version=os.getenv("AZURE_API_VERSION")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp\venv6\Lib\site-packages\openai\lib\azure.py", line 199, in __init__
+    raise OpenAIError(
+        "Missing credentials. Please pass one of `api_key`, `azure_ad_token`, `azure_ad_token_provider`, or the `AZURE_OPENAI_API_KEY` or `AZURE_OPENAI_AD_TOKEN` environment variables."
+    )
+openai.OpenAIError: Missing credentials. Please pass one of `api_key`, `azure_ad_token`, `azure_ad_token_provider`, or the `AZURE_OPENAI_Ay", line 199, in __init__
+    raise OpenAIError(
+        "Missing credentials. Please pass one of `api_key`, `azure_ad_token`, `azure_ad_token_provider`, or the `AZURE_OPENAI_API_KEY` or `AZURE_OPENAI_AD_TOKEN` environment variables."
+    )
+openai.OpenAIError: Missing credentials. Please pass one of `api_key`, `azure_ad_token`, `azure_ad_token_provider`, or the `AZURE_OPENAI_A`AZURE_OPENAI_AD_TOKEN` environment variables."
+    )
+openai.OpenAIError: Missing credentials. Please pass one of `api_key`, `azure_ad_token`, `azure_ad_token_provider`, or the `AZURE_OPENAI_Aopenai.OpenAIError: Missing credentials. Please pass one of `api_key`, `azure_ad_token`, `azure_ad_token_provider`, or the `AZURE_OPENAI_API_KEY` or `AZURE_OPENAI_AD_TOKEN` environment variables.
+(venv6) PS C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp> python test_connection.py
+🧪 Flight MCP Server - Connection Tests
+==================================================
+🔍 Testing Environment Variables...
+  ✅ MONGODB_URI: Set
+  ✅ DB_NAME: Set
+  ✅ AZURE_OPENAI_ENDPOINT: Set
+  ✅ AZURE_OPENAI_KEY: Set
+  ✅ AZURE_OPENAI_DEPLOYMENT_NAME: Set
+
+🔍 Testing MongoDB Connection...
+❌ MongoDB connection failed: pl-0-southindia-azure.npznw.mongodb.net:1026: timed out (configured timeouts: socketTimeoutMS: 20000.0ms, connectTimeoutMS: 20000.0ms),pl-0-centralindia-azure.npznw.mongodb.net:1024: timed out (configured timeouts: socketTimeoutMS: 20000.0ms, connectTimeoutMS: 20000.0ms),pl-0-centralindia-azure.npznw.mongodb.net:1025: timed out (configured timeouts: socketTimeoutMS: 20000.0ms, connectTimeoutMS: 20000.0ms), Timeout: 30s, Topology Description: <TopologyDescription id: 68f7663472827d71aebeb924, topology_type: ReplicaSetNoPrimary, servers: [<ServerDescription ('pl-0-centralindia-azure.npznw.mongodb.net', 1024) server_type: Unknown, rtt: None, error=NetworkTimeout('pl-0-centralindia-azure.npznw.mongodb.net:1024: timed out (configured timeouts: socketTimeoutMS: 20000.0ms, connectTimeoutMS: 20000.0ms)')>, <ServerDescription ('pl-0-centralindia-azure.npznw.mongodb.net', 1025) server_type: Unknown, rtt: None, error=NetworkTimeout('pl-0-centralindia-azure.npznw.mongodb.net:1025: timed out (configured timeouts: socketTimeoutMS: 20000.0ms, connectTimeoutMS: 20000.0ms)')>, <ServerDescription ('pl-0-southindia-azure.npznw.mongodb.net', 1026) server_type: Unknown, rtt: None, error=NetworkTimeout('pl-0-southindia-azure.npznw.mongodb.net:1026: timed out (configured timeouts: socketTimeoutMS: 20000.0ms, connectTimeoutMS: 20000.0ms)')>]>
+  ❌ MongoDB: Connection failed - pl-0-southindia-azure.npznw.mongodb.net:1026: timed out (configured timeouts: socketTimeoutMS: 20000.0ms, connectTimeoutMS: 20000.0ms),pl-0-centralindia-azure.npznw.mongodb.net:1024: timed out (configured timeouts: socketTimeoutMS: 20000.0ms, connectTimeoutMS: 20000.0ms),pl-0-centralindia-azure.npznw.mongodb.net:1025: timed out (configured timeouts: socketTimeoutMS: 20000.0ms, connectTimeoutMS: 20000.0ms), Timeout: 30s, Topology Description: <TopologyDescription id: 68f7663472827d71aebeb924, topology_type: ReplicaSetNoPrimary, servers: [<ServerDescription ('pl-0-centralindia-azure.npznw.mongodb.net', 1024) server_type: Unknown, rtt: None, error=NetworkTimeout('pl-0-centralindia-azure.npznw.mongodb.net:1024: timed out (configured timeouts: socketTimeoutMS: 20000.0ms, connectTimeoutMS: 20000.0ms)')>, <ServerDescription ('pl-0-centralindia-azure.npznw.mongodb.net', 1025) server_type: Unknown, rtt: None, error=NetworkTimeout('pl-0-centralindia-azure.npznw.mongodb.net:1025: timed out (configured timeouts: socketTimeoutMS: 20000.0ms, connectTimeoutMS: 20000.0ms)')>, <ServerDescription ('pl-0-southindia-azure.npznw.mongodb.net', 1026) server_type: Unknown, rtt: None, error=NetworkTimeout('pl-0-southindia-azure.npznw.mongodb.net:1026: timed out (configured timeouts: socketTimeoutMS: 20000.0ms, connectTimeoutMS: 20000.0ms)')>]>      
+
+🔍 Testing Azure OpenAI Connection...
+2025-10-21 16:24:38,048 - AzureOpenAIClient - INFO - [azure_client.py:38] - Azure OpenAI client initialized with endpoint: https://6e-openai-sandbox-aops.openai.azure.com/
+2025-10-21 16:24:38,049 - AzureOpenAIClient - INFO - [azure_client.py:39] - Using deployment: gpt-4o
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp\venv6\Lib\site-packages\httpx\_transports\default.py", line 101, in map_httpcore_exceptions
+    yield
+  File "C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp\venv6\Lib\site-packages\httpx\_transports\default.py", line 250, in handle_request
+    resp = self._pool.handle_request(req)
+  File "C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp\venv6\Lib\site-packages\httpcore\_sync\connection_pool.py", line 256, in handle_request
+    raise exc from None
+  File "C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp\venv6\Lib\site-packages\httpcore\_sync\connection_pool.py", line 236, in handle_request
+    response = connection.handle_request(
+        pool_request.request
+    )
+  File "C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp\venv6\Lib\site-packages\httpcore\_sync\connection.py", line 101, in handle_request
+    raise exc
+  File "C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp\venv6\Lib\site-packages\httpcore\_sync\connection.py", line 78, in handle_request
+    stream = self._connect(request)
+  File "C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp\venv6\Lib\site-packages\httpcore\_sync\connection.py", line 156, in _connect
+    stream = stream.start_tls(**kwargs)
+  File "C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp\venv6\Lib\site-packages\httpcore\_backends\sync.py", line 154, in start_tls
+    with map_exceptions(exc_map):
+         ~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\Deeksha.x.Srivastava\AppData\Local\Programs\Python\Python313\Lib\contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp\venv6\Lib\site-packages\httpcore\_exceptions.py", line 14, in map_exceptions
+    raise to_exc(exc) from exc
+httpcore.ConnectError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1032)   
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp\venv6\Lib\site-packages\openai\_base_client.py", line 982, in request
+    response = self._client.send(
+        request,
+        stream=stream or self._should_stream_response_body(request=request),
+        **kwargs,
+    )
+  File "C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp\venv6\Lib\site-packages\httpx\_client.py", line 914, in send
+    response = self._send_handling_auth(
+        request,
+    ...<2 lines>...
+        history=[],
+    )
+  File "C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp\venv6\Lib\site-packages\httpx\_client.py", line 942, in _send_handling_auth
+    response = self._send_handling_redirects(
+        request,
+        follow_redirects=follow_redirects,
+        history=history,
+    )
+  File "C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp\venv6\Lib\site-packages\httpx\_client.py", line 979, in _send_handling_redirects
+    response = self._send_single_request(request)
+  File "C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp\venv6\Lib\site-packages\httpx\_client.py", line 1014, in _send_single_request
+    response = transport.handle_request(request)
+  File "C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp\venv6\Lib\site-packages\httpx\_transports\default.py", line 249, in handle_request
+    with map_httpcore_exceptions():
+         ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Deeksha.x.Srivastava\AppData\Local\Programs\Python\Python313\Lib\contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp\venv6\Lib\site-packages\httpx\_transports\default.py", line 118, in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+httpx.ConnectError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1032)      
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp\azure_client.py", line 51, in test_connection
+    response = self.client.chat.completions.create(
+        model=self.deployment_name,
+        messages=[{"role": "user", "content": "Say 'Connection test successful'"}],
+        max_tokens=10
+    )
+  File "C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp\venv6\Lib\site-packages\openai\_utils\_utils.py", line 286, in wrapper
+    return func(*args, **kwargs)
+  File "C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp\venv6\Lib\site-packages\openai\resources\chat\completions\completions.py", line 1156, in create
+    return self._post(
+           ~~~~~~~~~~^
+        "/chat/completions",
+        ^^^^^^^^^^^^^^^^^^^^
+    ...<46 lines>...
+        stream_cls=Stream[ChatCompletionChunk],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp\venv6\Lib\site-packages\openai\_base_client.py", line 1259, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp\venv6\Lib\site-packages\openai\_base_client.py", line 1014, in request
+    raise APIConnectionError(request=request) from err
+openai.APIConnectionError: Connection error.
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\Deeksha.x.Srivastava\AppData\Local\Programs\Python\Python313\Lib\logging\__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Deeksha.x.Srivastava\AppData\Local\Programs\Python\Python313\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u274c' in position 77: character maps to <undefined>
+Call stack:
+  File "C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp\test_connection.py", line 83, in <module> 
+    main()
+  File "C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp\test_connection.py", line 64, in main     
+    azure_ok = test_azure_openai()
+  File "C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp\test_connection.py", line 50, in test_azure_openai
+    client = AzureOpenAIClient()
+  File "C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp\azure_client.py", line 42, in __init__    
+    self.test_connection()
+  File "C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp\azure_client.py", line 59, in test_connection
+    self.logger.error(f"❌ Azure OpenAI connection test failed: {str(e)}")
+Message: '❌ Azure OpenAI connection test failed: Connection error.'
+Arguments: ()
+2025-10-21 16:24:41,842 - AzureOpenAIClient - ERROR - [azure_client.py:59] - ❌ Azure OpenAI connection test failed: Connection error.    
+2025-10-21 16:24:41,874 - AzureOpenAIClient - ERROR - [azure_client.py:45] - Failed to initialize Azure OpenAI client: Connection error.  
+  ❌ Azure OpenAI: Connection failed - Connection error.
+
+==================================================
+📊 Test Results:
+  Environment: ✅ OK
+  MongoDB: ❌ Failed
+  Azure OpenAI: ❌ Failed
+
+❌ Please fix the issues above before running the server
