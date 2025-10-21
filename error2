@@ -1,0 +1,142 @@
+(venv6) PS C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp> python test_connection.py  
+🧪 Flight MCP Server - Connection Tests
+==================================================
+🔍 Testing Environment Variables...
+  ✅ MONGODB_URI: Set
+  ✅ DB_NAME: Set
+  ✅ AZURE_OPENAI_ENDPOINT: Set
+  ✅ AZURE_OPENAI_KEY: Set
+  ✅ AZURE_OPENAI_DEPLOYMENT_NAME: Set
+
+🔍 Testing MongoDB Connection...
+❌ MongoDB connection failed: pl-0-southindia-azure.npznw.mongodb.net:1026: [WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond (configured timeouts: socketTimeoutMS: 30000.0ms, connectTimeoutMS: 30000.0ms),pl-0-centralindia-azure.npznw.mongodb.net:1024: [WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond (configured timeouts: socketTimeoutMS: 30000.0ms, connectTimeoutMS: 30000.0ms),pl-0-centralindia-azure.npznw.mongodb.net:1025: [WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond (configured timeouts: socketTimeoutMS: 30000.0ms, connectTimeoutMS: 30000.0ms), Timeout: 30.0s, Topology Description: <TopologyDescription id: 68f76ce7cff5933b7b08a539, topology_type: ReplicaSetNoPrimary, servers: [<ServerDescription ('pl-0-centralindia-azure.npznw.mongodb.net', 1024) server_type: Unknown, rtt: None, error=NetworkTimeout('pl-0-centralindia-azure.npznw.mongodb.net:1024: [WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond (configured timeouts: socketTimeoutMS: 30000.0ms, connectTimeoutMS: 30000.0ms)')>, <ServerDescription ('pl-0-centralindia-azure.npznw.mongodb.net', 1025) server_type: Unknown, rtt: None, error=NetworkTimeout('pl-0-centralindia-azure.npznw.mongodb.net:1025: [WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond (configured timeouts: socketTimeoutMS: 30000.0ms, connectTimeoutMS: 30000.0ms)')>, <ServerDescription ('pl-0-southindia-azure.npznw.mongodb.net', 1026) server_type: Unknown, rtt: None, error=NetworkTimeout('pl-0-southindia-azure.npznw.mongodb.net:1026: [WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond (configured timeouts: socketTimeoutMS: 30000.0ms, connectTimeoutMS: 30000.0ms)')>]>
+⚠️  Using mock database for development
+  ✅ MongoDB: Connected successfully (Mock database)
+  📁 Collections: ['flights', 'airlines', 'airports']
+  ✅ MongoDB: Connected successfully (Mock database)
+  📁 Collections: ['flights', 'airlines', 'airports']
+  📁 Collections: ['flights', 'airlines', 'airports']
+
+🔍 Testing Azure OpenAI Connection...
+2025-10-21 16:53:11,156 - AzureOpenAIClient - ERROR - [azure_client.py:54] - Failed to initialize Azure OpenAI client: Please update your .env file with actual Azure OpenAI credentials
+  ⚠️  Azure OpenAI: Connection issues - Please update your .env file with actual Azure OpenAI credentials
+  ⚠️  Azure OpenAI: Connection issues - Please update your .env file with actual Azure OpenAI credentials
+     The server will start with limited functionality
+
+==================================================
+📊 Test Results:
+
+==================================================
+
+
+==================================================
+📊 Test Results:
+  Environment: ✅ OK
+  MongoDB: ✅ OK
+  Azure OpenAI: ⚠️ Limited
+
+🎉 Server should work! (Basic functionality guaranteed)
+
+==================================================
+📊 Test Results:
+  Environment: ✅ OK
+  MongoDB: ✅ OK
+  Azure OpenAI: ⚠️ Limited
+
+🎉 Server should work! (Basic functionality guaranteed)
+
+==================================================
+📊 Test Results:
+  Environment: ✅ OK
+  MongoDB: ✅ OK
+  Azure OpenAI: ⚠️ Limited
+
+🎉 Server should work! (Basic functionality guaranteed)
+⚠️  AI features disabled due to SSL/connection issues
+
+==================================================
+📊 Test Results:
+  Environment: ✅ OK
+  MongoDB: ✅ OK
+  Azure OpenAI: ⚠️ Limited
+
+
+==================================================
+📊 Test Results:
+  Environment: ✅ OK
+  MongoDB: ✅ OK
+  Azure OpenAI: ⚠️ Limited
+📊 Test Results:
+  Environment: ✅ OK
+  MongoDB: ✅ OK
+  Azure OpenAI: ⚠️ Limited
+  MongoDB: ✅ OK
+  Azure OpenAI: ⚠️ Limited
+  Azure OpenAI: ⚠️ Limited
+
+🎉 Server should work! (Basic functionality guaranteed)
+⚠️  AI features disabled due to SSL/connection issues
+
+💡 Next step: Run 'python flight_mcp_server.py'
+###########################################################################################
+(venv6) PS C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp> python test_connection.py  
+🧪 Flight MCP Server - Connection Tests
+==================================================
+🔍 Testing Environment Variables...
+  ✅ MONGODB_URI: Set
+  ✅ DB_NAME: Set
+  ✅ AZURE_OPENAI_ENDPOINT: Set
+  ✅ AZURE_OPENAI_KEY: Set
+  ✅ AZURE_OPENAI_DEPLOYMENT_NAME: Set
+
+🔍 Testing MongoDB Connection...
+❌ MongoDB connection failed: pl-0-centralindia-azure.npznw.mongodb.net:1024: [WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond (configured timeouts: socketTimeoutMS: 30000.0ms, connectTimeoutMS: 30000.0ms),pl-0-centralindia-azure.npznw.mongodb.net:1025: [WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond (configured timeouts: socketTimeoutMS: 30000.0ms, connectTimeoutMS: 30000.0ms),pl-0-southindia-azure.npznw.mongodb.net:1026: [WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond (configured timeouts: socketTimeoutMS: 30000.0ms, connectTimeoutMS: 30000.0ms), Timeout: 30.0s, Topology Description: <TopologyDescription id: 68f76c12c2512ffd81c0e424, topology_type: ReplicaSetNoPrimary, servers: [<ServerDescription ('pl-0-centralindia-azure.npznw.mongodb.net', 1024) server_type: Unknown, rtt: None, error=NetworkTimeout('pl-0-centralindia-azure.npznw.mongodb.net:1024: [WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond (configured timeouts: socketTimeoutMS: 30000.0ms, connectTimeoutMS: 30000.0ms)')>, <ServerDescription ('pl-0-centralindia-azure.npznw.mongodb.net', 1025) server_type: Unknown, rtt: None, error=NetworkTimeout('pl-0-centralindia-azure.npznw.mongodb.net:1025: [WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond (configured timeouts: socketTimeoutMS: 30000.0ms, connectTimeoutMS: 30000.0ms)')>, <ServerDescription ('pl-0-southindia-azure.npznw.mongodb.net', 1026) server_type: Unknown, rtt: None, error=NetworkTimeout('pl-0-southindia-azure.npznw.mongodb.net:1026: [WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond (configured timeouts: socketTimeoutMS: 30000.0ms, connectTimeoutMS: 30000.0ms)')>]>
+⚠️  Using mock database for development
+  ✅ MongoDB: Connected successfully (Mock database)
+  📁 Collections: ['flights', 'airlines', 'airports']
+
+🔍 Testing Azure OpenAI Connection...
+2025-10-21 16:49:37,870 - AzureOpenAIClient - ERROR - [azure_client.py:54] - Failed to initialize Azure OpenAI client: Please update your .env file with actual Azure OpenAI credentials
+  ⚠️  Azure OpenAI: Connection issues - Please update your .env file with actual Azure OpenAI credentials
+     The server will start with limited functionality
+
+==================================================
+📊 Test Results:
+  Environment: ✅ OK
+  MongoDB: ✅ OK
+  Azure OpenAI: ⚠️ Limited
+
+🎉 Server should work! (Basic functionality guaranteed)
+⚠️  AI features disabled due to SSL/connection issues
+
+💡 Next step: Run 'python flight_mcp_server.py'
+(venv6) PS C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp> python flight_mcp_server.py
+C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp\models.py:9: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  class FlightData(BaseModel):
+C:\Users\Deeksha.x.Srivastava\OneDrive - InterGlobe Aviation Limited\Desktop\flight_mcp\venv6\Lib\site-packages\pydantic\_internal\_generate_schema.py:319: PydanticDeprecatedSince20: `json_encoders` is deprecated. See https://docs.pydantic.dev/2.12/concepts/serialization/#custom-serializers for alternatives. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  warnings.warn(
+2025-10-21 16:50:21,922 - FlightMCPServer - INFO - [flight_mcp_server.py:332] - Starting Flight Data AI MCP Server
+🚀 Flight Data MCP Server Starting...
+==================================================
+❌ MongoDB connection failed: pl-0-centralindia-azure.npznw.mongodb.net:1024: [WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond (configured timeouts: socketTimeoutMS: 30000.0ms, connectTimeoutMS: 30000.0ms),pl-0-southindia-azure.npznw.mongodb.net:1026: [WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond (configured timeouts: socketTimeoutMS: 30000.0ms, connectTimeoutMS: 30000.0ms),pl-0-centralindia-azure.npznw.mongodb.net:1025: [WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond (configured timeouts: socketTimeoutMS: 30000.0ms, connectTimeoutMS: 30000.0ms), Timeout: 30.0s, Topology Description: <TopologyDescription id: 68f76c753c89dadd3a009b66, topology_type: ReplicaSetNoPrimary, servers: [<ServerDescription ('pl-0-centralindia-azure.npznw.mongodb.net', 1024) server_type: Unknown, rtt: None, error=NetworkTimeout('pl-0-centralindia-azure.npznw.mongodb.net:1024: [WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond (configured timeouts: socketTimeoutMS: 30000.0ms, connectTimeoutMS: 30000.0ms)')>, <ServerDescription ('pl-0-centralindia-azure.npznw.mongodb.net', 1025) server_type: Unknown, rtt: None, error=NetworkTimeout('pl-0-centralindia-azure.npznw.mongodb.net:1025: [WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond (configured timeouts: socketTimeoutMS: 30000.0ms, connectTimeoutMS: 30000.0ms)')>, <ServerDescription ('pl-0-southindia-azure.npznw.mongodb.net', 1026) server_type: Unknown, rtt: None, error=NetworkTimeout('pl-0-southindia-azure.npznw.mongodb.net:1026: [WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond (configured timeouts: socketTimeoutMS: 30000.0ms, connectTimeoutMS: 30000.0ms)')>]>
+⚠️  Using mock database for development
+📁 Database: Connected (Using Mock data)
+📊 Collections: ['flights', 'airlines', 'airports']
+2025-10-21 16:51:16,392 - AzureOpenAIClient - ERROR - [azure_client.py:54] - Failed to initialize Azure OpenAI client: Please update your .env file with actual Azure OpenAI credentials
+2025-10-21 16:51:16,393 - FlightMCPServer - WARNING - [flight_mcp_server.py:35] - Azure OpenAI client not available: Please update your .env file with actual Azure OpenAI credentials
+2025-10-21 16:51:16,394 - FlightMCPServer - INFO - [flight_mcp_server.py:36] - AI features will be disabled. Server will continue with basic functionality.
+⚠️  Azure OpenAI: Limited mode (SSL/Connection issues)
+   Basic flight queries will work, AI features disabled
+==================================================
+🛠️  Available Tools:
+   - check_environment()
+   - test_azure_connection()
+   - get_flights_by_carrier(carrier)
+   - get_flights_by_route(start, end)
+   - get_basic_flight_analysis(carrier)
+   - analyze_flight_delays(carrier, days) [if Azure available]
+   - add_sample_flight()
+==================================================
+2025-10-21 16:51:16,429 - FlightMCPServer - ERROR - [flight_mcp_server.py:366] - Failed to start server: FastMCP.run_stdio_async() got an unexpected keyword argument 'host'
+❌ Error starting server: FastMCP.run_stdio_async() got an unexpected keyword argument 'host'
+💡 The server will start with limited functionality
