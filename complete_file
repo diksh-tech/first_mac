@@ -1,0 +1,407 @@
+MONGODB_URI=your-mongodb-connection-string
+DB_NAME=your_database_name
+AZURE_OPENAI_ENDPOINT=your-azure-openai-endpoint
+AZURE_OPENAI_KEY=your-azure-openai-key
+AZURE_API_VERSION=2024-02-01
+AZURE_OPENAI_DEPLOYMENT_NAME=your-gpt-4o-deployment-name
+LOG_LEVEL=INFO
+#################################################################################
+# config.py
+import os
+import logging
+from logging.handlers import RotatingFileHandler
+from datetime import datetime
+
+def setup_logger(name: str):
+    """Setup comprehensive logging configuration"""
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
+    
+    # Create logs directory if it doesn't exist
+    os.makedirs('logs', exist_ok=True)
+    
+    # File handler with rotation
+    file_handler = RotatingFileHandler(
+        f'logs/flight_mcp_{datetime.now().strftime("%Y%m%d")}.log',
+        maxBytes=10*1024*1024,  # 10MB
+        backupCount=5
+    )
+    
+    # Console handler
+    console_handler = logging.StreamHandler()
+    
+    # Formatter
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s'
+    )
+    
+    file_handler.setFormatter(formatter)
+    console_handler.setFormatter(formatter)
+    
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+    
+    return logger
+#########################################################################
+# azure_client.py
+import os
+from openai import AzureOpenAI
+from config import setup_logger
+
+class AzureOpenAIClient:
+    def __init__(self):
+        self.logger = setup_logger("AzureOpenAIClient")
+        try:
+            self.client = AzureOpenAI(
+                azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+                api_key=os.getenv("AZURE_OPENAI_KEY"),
+                api_version=os.getenv("AZURE_API_VERSION", "2024-02-01")
+            )
+            self.deployment_name = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-4o")
+            self.logger.info("Azure OpenAI client initialized successfully")
+        except Exception as e:
+            self.logger.error(f"Failed to initialize Azure OpenAI client: {str(e)}")
+            raise
+    
+    def generate_response(self, prompt: str, system_message: str = None, max_tokens: int = 500):
+        """Generate response using Azure OpenAI GPT-4o"""
+        try:
+            self.logger.info(f"Generating response for prompt: {prompt[:100]}...")
+            
+            messages = []
+            if system_message:
+                messages.append({"role": "system", "content": system_message})
+            
+            messages.append({"role": "user", "content": prompt})
+            
+            response = self.client.chat.completions.create(
+                model=self.deployment_name,
+                messages=messages,
+                max_tokens=max_tokens,
+                temperature=0.7
+            )
+            
+            result = response.choices[0].message.content
+            self.logger.info("Successfully generated response from Azure OpenAI")
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Error generating response from Azure OpenAI: {str(e)}")
+            return f"Error: {str(e)}"
+########################################################################################
+# flight_mcp_server.py
+from fastmcp import FastMCP
+from db import get_database
+from models import FlightData, ReturnEvent
+from azure_client import AzureOpenAIClient
+from config import setup_logger
+from typing import List, Optional, Dict, Any
+from datetime import datetime, timedelta
+from bson import ObjectId
+import json
+
+# Initialize components
+mcp = FastMCP("Flight Data AI Server")
+azure_client = AzureOpenAIClient()
+logger = setup_logger("FlightMCPServer")
+
+@mcp.tool
+def get_flights_by_carrier(carrier: str) -> List[dict]:
+    """Get all flights for a specific carrier"""
+    logger.info(f"Fetching flights for carrier: {carrier}")
+    try:
+        db = get_database()
+        flights = list(db.flights.find({"carrier": carrier}))
+        logger.info(f"Found {len(flights)} flights for carrier {carrier}")
+        return flights
+    except Exception as e:
+        logger.error(f"Error fetching flights for carrier {carrier}: {str(e)}")
+        return []
+
+@mcp.tool
+def get_flights_by_route(start_station: str, end_station: str) -> List[dict]:
+    """Get flights between two stations"""
+    logger.info(f"Fetching flights from {start_station} to {end_station}")
+    try:
+        db = get_database()
+        flights = list(db.flights.find({
+            "startstation": start_station,
+            "endstation": end_station
+        }))
+        logger.info(f"Found {len(flights)} flights from {start_station} to {end_station}")
+        return flights
+    except Exception as e:
+        logger.error(f"Error fetching flights from {start_station} to {end_station}: {str(e)}")
+        return []
+
+@mcp.tool
+def analyze_flight_delays(carrier: str, days: int = 7) -> Dict[str, Any]:
+    """Analyze flight delays for a carrier using AI"""
+    logger.info(f"Analyzing flight delays for {carrier} over {days} days")
+    try:
+        db = get_database()
+        
+        # Get recent flights data
+        start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+        flights = list(db.flights.find({
+            "carrier": carrier,
+            "dateoforigin": {"$gte": start_date}
+        }))
+        
+        if not flights:
+            logger.warning(f"No flights found for carrier {carrier} in the last {days} days")
+            return {"analysis": "No data available"}
+        
+        # Prepare data for AI analysis
+        flight_data_summary = {
+            "total_flights": len(flights),
+            "carrier": carrier,
+            "analysis_period": f"Last {days} days",
+            "sample_flights": flights[:5]  # Send sample for analysis
+        }
+        
+        # Use Azure OpenAI to analyze delays
+        prompt = f"""
+        Analyze the following flight data for {carrier} and provide insights about:
+        1. Potential delay patterns
+        2. Route efficiency
+        3. Any concerning trends
+        
+        Flight Data Summary:
+        {json.dumps(flight_data_summary, indent=2, default=str)}
+        
+        Please provide a concise analysis focusing on operational insights.
+        """
+        
+        system_message = "You are an airline operations analyst. Provide clear, actionable insights about flight data patterns."
+        
+        analysis = azure_client.generate_response(
+            prompt=prompt,
+            system_message=system_message,
+            max_tokens=800
+        )
+        
+        logger.info(f"Completed AI analysis for {carrier}")
+        return {
+            "carrier": carrier,
+            "analysis_period": f"Last {days} days",
+            "total_flights_analyzed": len(flights),
+            "ai_analysis": analysis
+        }
+        
+    except Exception as e:
+        logger.error(f"Error analyzing flight delays for {carrier}: {str(e)}")
+        return {"error": str(e)}
+
+@mcp.tool
+def generate_flight_recommendations(origin: str, destination: str, date: str) -> Dict[str, Any]:
+    """Generate AI-powered flight recommendations"""
+    logger.info(f"Generating recommendations from {origin} to {destination} on {date}")
+    try:
+        db = get_database()
+        
+        # Find available flights
+        flights = list(db.flights.find({
+            "startstation": origin,
+            "endstation": destination,
+            "dateoforigin": date
+        }))
+        
+        if not flights:
+            logger.warning(f"No flights found from {origin} to {destination} on {date}")
+            return {"recommendations": "No flights available"}
+        
+        # Use AI to generate recommendations
+        prompt = f"""
+        Analyze these flight options from {origin} to {destination} on {date}:
+        {json.dumps(flights, indent=2, default=str)}
+        
+        Provide recommendations considering:
+        1. Optimal timing
+        2. Carrier reliability
+        3. Any patterns in the data
+        
+        Format the response with clear recommendations and reasoning.
+        """
+        
+        system_message = "You are a travel advisor. Provide helpful flight recommendations based on the available options."
+        
+        recommendations = azure_client.generate_response(
+            prompt=prompt,
+            system_message=system_message,
+            max_tokens=600
+        )
+        
+        logger.info(f"Generated AI recommendations for {origin} to {destination}")
+        return {
+            "route": f"{origin} to {destination}",
+            "date": date,
+            "available_flights": len(flights),
+            "ai_recommendations": recommendations
+        }
+        
+    except Exception as e:
+        logger.error(f"Error generating recommendations: {str(e)}")
+        return {"error": str(e)}
+
+@mcp.tool
+def summarize_carrier_performance(carrier: str) -> Dict[str, Any]:
+    """Generate AI summary of carrier performance"""
+    logger.info(f"Generating performance summary for {carrier}")
+    try:
+        db = get_database()
+        
+        # Get carrier data
+        flights = list(db.flights.find({"carrier": carrier}))
+        
+        if not flights:
+            return {"summary": "No data available for this carrier"}
+        
+        # Calculate basic statistics
+        routes = set((f["startstation"], f["endstation"]) for f in flights)
+        
+        prompt = f"""
+        Analyze the performance and operations of airline carrier {carrier} based on this data:
+        
+        Total Flights: {len(flights)}
+        Unique Routes: {len(routes)}
+        Sample Flight Data: {json.dumps(flights[:3], indent=2, default=str)}
+        
+        Provide a comprehensive summary covering:
+        1. Route network analysis
+        2. Operational scale
+        3. Potential strengths and weaknesses
+        
+        Be insightful and data-driven in your analysis.
+        """
+        
+        system_message = "You are an airline industry analyst. Provide professional analysis of carrier operations."
+        
+        summary = azure_client.generate_response(
+            prompt=prompt,
+            system_message=system_message,
+            max_tokens=700
+        )
+        
+        logger.info(f"Generated performance summary for {carrier}")
+        return {
+            "carrier": carrier,
+            "total_flights": len(flights),
+            "unique_routes": len(routes),
+            "ai_summary": summary
+        }
+        
+    except Exception as e:
+        logger.error(f"Error generating carrier summary: {str(e)}")
+        return {"error": str(e)}
+
+@mcp.resource("flights://{flight_id}")
+def get_flight_resource(flight_id: str) -> dict:
+    """Get flight data as a resource"""
+    logger.info(f"Fetching flight resource for ID: {flight_id}")
+    try:
+        db = get_database()
+        flight = db.flights.find_one({"_id": ObjectId(flight_id)})
+        if flight:
+            logger.info(f"Successfully retrieved flight {flight_id}")
+            return flight
+        else:
+            logger.warning(f"Flight not found: {flight_id}")
+            return {"error": "Flight not found"}
+    except Exception as e:
+        logger.error(f"Error fetching flight resource {flight_id}: {str(e)}")
+        return {"error": str(e)}
+
+@mcp.prompt
+def analyze_route_efficiency(origin: str, destination: str) -> str:
+    """Prompt template for route efficiency analysis"""
+    logger.info(f"Analyzing route efficiency from {origin} to {destination}")
+    
+    flights = get_flights_by_route(origin, destination)
+    
+    if not flights:
+        return f"No flight data available for route {origin} to {destination}"
+    
+    prompt = f"""
+    Analyze the efficiency of the flight route from {origin} to {destination}:
+    
+    Available Flights Data:
+    {json.dumps(flights, indent=2, default=str)}
+    
+    Please analyze:
+    1. Schedule consistency
+    2. Carrier distribution
+    3. Operational patterns
+    4. Potential improvements
+    
+    Provide actionable insights for this route.
+    """
+    
+    return azure_client.generate_response(
+        prompt=prompt,
+        system_message="You are an airline route optimization expert.",
+        max_tokens=600
+    )
+
+# Enhanced MongoDB aggregation with AI insights
+@mcp.tool
+def get_intelligent_carrier_insights(carrier: str) -> Dict[str, Any]:
+    """Get AI-enhanced insights for a carrier"""
+    logger.info(f"Generating intelligent insights for {carrier}")
+    try:
+        db = get_database()
+        
+        # Basic aggregation
+        pipeline = [
+            {"$match": {"carrier": carrier}},
+            {"$group": {
+                "_id": "$carrier",
+                "total_flights": {"$sum": 1},
+                "unique_routes": {"$addToSet": {"start": "$startstation", "end": "$endstation"}},
+                "date_range": {
+                    "$push": "$dateoforigin"
+                }
+            }}
+        ]
+        
+        result = list(db.flights.aggregate(pipeline))
+        
+        if not result:
+            return {"insights": "No data available"}
+        
+        # Enhance with AI analysis
+        prompt = f"""
+        Based on this carrier aggregation data, provide strategic insights:
+        {json.dumps(result, indent=2, default=str)}
+        
+        Focus on:
+        1. Business implications
+        2. Market positioning
+        3. Growth opportunities
+        4. Operational strengths
+        """
+        
+        ai_insights = azure_client.generate_response(
+            prompt=prompt,
+            system_message="You are a strategic business analyst for the aviation industry.",
+            max_tokens=800
+        )
+        
+        logger.info(f"Generated intelligent insights for {carrier}")
+        return {
+            "basic_metrics": result[0],
+            "strategic_insights": ai_insights
+        }
+        
+    except Exception as e:
+        logger.error(f"Error generating intelligent insights: {str(e)}")
+        return {"error": str(e)}
+
+if __name__ == "__main__":
+    logger.info("Starting Flight Data AI MCP Server")
+    try:
+        mcp.run()
+        logger.info("MCP Server started successfully")
+    except Exception as e:
+        logger.error(f"Failed to start MCP Server: {str(e)}")
+        raise
