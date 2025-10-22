@@ -1,0 +1,911 @@
+fastmcp>=1.0.0
+pymongo>=4.5.0
+pydantic>=2.0.0
+python-dotenv>=1.0.0
+#######################
+# MongoDB Configuration
+MONGODB_URI=your_mongodb_connection_string_from_compass
+DB_NAME=your_database_name
+
+# Server Configuration
+LOG_LEVEL=INFO
+################################
+import os
+import logging
+from logging.handlers import RotatingFileHandler
+from datetime import datetime
+
+def setup_logger(name: str):
+    """Setup comprehensive logging configuration"""
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
+    
+    # Create logs directory if it doesn't exist
+    os.makedirs('logs', exist_ok=True)
+    
+    # File handler with rotation
+    file_handler = RotatingFileHandler(
+        f'logs/flight_server_{datetime.now().strftime("%Y%m%d")}.log',
+        maxBytes=10*1024*1024,
+        backupCount=5
+    )
+    
+    # Console handler
+    console_handler = logging.StreamHandler()
+    
+    # Formatter
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s'
+    )
+    
+    file_handler.setFormatter(formatter)
+    console_handler.setFormatter(formatter)
+    
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+    return logger
+    ####################################################
+from pymongo import MongoClient
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+def get_database():
+    """Get MongoDB database connection"""
+    MONGO_URI = os.getenv("MONGODB_URI")
+    DB_NAME = os.getenv("DB_NAME")
+    
+    if not MONGO_URI:
+        raise ValueError("MONGODB_URI environment variable is required")
+    if not DB_NAME:
+        raise ValueError("DB_NAME environment variable is required")
+    
+    try:
+        client = MongoClient(
+            MONGO_URI,
+            serverSelectionTimeoutMS=30000,
+            connectTimeoutMS=30000,
+            socketTimeoutMS=30000
+        )
+        
+        # Test connection
+        client.admin.command('ping')
+        return client[DB_NAME]
+    except Exception as e:
+        raise ConnectionError(f"Failed to connect to MongoDB: {str(e)}")
+###########################################################################
+from pydantic import BaseModel, ConfigDict
+from datetime import datetime
+from typing import List, Optional
+
+class ReturnEvent(BaseModel):
+    returnEvent: str
+
+class FlightData(BaseModel):
+    flightlegstate: str
+    carrier: str
+    dateoforigin: str
+    flight_number: str
+    startstation: str
+    endstation: str
+    scheduledstarttime: datetime
+    scheduledEndTime: datetime
+    returnEvents: List[ReturnEvent]
+
+    model_config = ConfigDict(
+        json_encoders={
+            datetime: lambda v: v.isoformat()
+        }
+    )
+#############################################################################
+from fastmcp import FastMCP
+from db import get_database
+from config import setup_logger
+from typing import List, Dict, Any
+from datetime import datetime, timedelta
+from bson import ObjectId
+import json
+
+# Initialize MCP server with stdio transport
+mcp = FastMCP("Flight Data Server")
+
+# Setup logging
+logger = setup_logger("FlightServer")
+
+# Global database connection
+_db = None
+
+def get_db():
+    """Get database connection with lazy initialization"""
+    global _db
+    if _db is None:
+        try:
+            _db = get_database()
+            logger.info("MongoDB connection established successfully")
+        except Exception as e:
+            logger.error(f"Failed to connect to MongoDB: {str(e)}")
+            raise
+    return _db
+
+# ============ CORE FLIGHT DATA TOOLS ============
+
+@mcp.tool
+def get_flights_by_carrier(carrier: str) -> List[Dict[str, Any]]:
+    """Get all flights for a specific airline carrier"""
+    logger.info(f"Searching flights for carrier: {carrier}")
+    try:
+        db = get_db()
+        flights = list(db.flights.find({"carrier": carrier}))
+        logger.info(f"Found {len(flights)} flights for carrier {carrier}")
+        return flights
+    except Exception as e:
+        logger.error(f"Error fetching flights for carrier {carrier}: {str(e)}")
+        return []
+
+@mcp.tool
+def get_flights_by_route(start_station: str, end_station: str) -> List[Dict[str, Any]]:
+    """Get flights between two stations (airports)"""
+    logger.info(f"Searching flights from {start_station} to {end_station}")
+    try:
+        db = get_db()
+        flights = list(db.flights.find({
+            "startstation": start_station,
+            "endstation": end_station
+        }))
+        logger.info(f"Found {len(flights)} flights from {start_station} to {end_station}")
+        return flights
+    except Exception as e:
+        logger.error(f"Error fetching flights from {start_station} to {end_station}: {str(e)}")
+        return []
+
+@mcp.tool
+def get_flights_by_date(date: str) -> List[Dict[str, Any]]:
+    """Get all flights for a specific date (YYYY-MM-DD format)"""
+    logger.info(f"Searching flights for date: {date}")
+    try:
+        db = get_db()
+        flights = list(db.flights.find({"dateoforigin": date}))
+        logger.info(f"Found {len(flights)} flights for date {date}")
+        return flights
+    except Exception as e:
+        logger.error(f"Error fetching flights for date {date}: {str(e)}")
+        return []
+
+@mcp.tool
+def get_flight_by_number(flight_number: str) -> Dict[str, Any]:
+    """Get specific flight by flight number"""
+    logger.info(f"Searching for flight: {flight_number}")
+    try:
+        db = get_db()
+        flight = db.flights.find_one({"flight_number": flight_number})
+        if flight:
+            logger.info(f"Found flight {flight_number}")
+            return flight
+        else:
+            logger.warning(f"Flight {flight_number} not found")
+            return {"error": "Flight not found"}
+    except Exception as e:
+        logger.error(f"Error fetching flight {flight_number}: {str(e)}")
+        return {"error": str(e)}
+
+@mcp.tool
+def get_flights_by_state(flightlegstate: str) -> List[Dict[str, Any]]:
+    """Get flights by their current state (Scheduled, Active, Completed, etc.)"""
+    logger.info(f"Searching flights with state: {flightlegstate}")
+    try:
+        db = get_db()
+        flights = list(db.flights.find({"flightlegstate": flightlegstate}))
+        logger.info(f"Found {len(flights)} flights with state {flightlegstate}")
+        return flights
+    except Exception as e:
+        logger.error(f"Error fetching flights with state {flightlegstate}: {str(e)}")
+        return []
+
+# ============ ANALYTICS TOOLS ============
+
+@mcp.tool
+def get_carrier_statistics(carrier: str) -> Dict[str, Any]:
+    """Get statistics for a specific carrier"""
+    logger.info(f"Generating statistics for carrier: {carrier}")
+    try:
+        db = get_db()
+        
+        # Total flights
+        total_flights = db.flights.count_documents({"carrier": carrier})
+        
+        # Unique routes
+        pipeline = [
+            {"$match": {"carrier": carrier}},
+            {"$group": {"_id": {"start": "$startstation", "end": "$endstation"}}},
+            {"$count": "unique_routes"}
+        ]
+        route_result = list(db.flights.aggregate(pipeline))
+        unique_routes = route_result[0]["unique_routes"] if route_result else 0
+        
+        # Flight states distribution
+        state_pipeline = [
+            {"$match": {"carrier": carrier}},
+            {"$group": {"_id": "$flightlegstate", "count": {"$sum": 1}}}
+        ]
+        state_results = list(db.flights.aggregate(state_pipeline))
+        state_distribution = {result["_id"]: result["count"] for result in state_results}
+        
+        # Date range
+        date_pipeline = [
+            {"$match": {"carrier": carrier}},
+            {"$group": {
+                "_id": None,
+                "earliest_date": {"$min": "$dateoforigin"},
+                "latest_date": {"$max": "$dateoforigin"}
+            }}
+        ]
+        date_result = list(db.flights.aggregate(date_pipeline))
+        
+        stats = {
+            "carrier": carrier,
+            "total_flights": total_flights,
+            "unique_routes": unique_routes,
+            "state_distribution": state_distribution,
+            "date_range": date_result[0] if date_result else {}
+        }
+        
+        logger.info(f"Generated statistics for {carrier}: {total_flights} total flights")
+        return stats
+        
+    except Exception as e:
+        logger.error(f"Error generating statistics for {carrier}: {str(e)}")
+        return {"error": str(e)}
+
+@mcp.tool
+def get_route_analysis(start_station: str, end_station: str) -> Dict[str, Any]:
+    """Analyze flight performance for a specific route"""
+    logger.info(f"Analyzing route: {start_station} to {end_station}")
+    try:
+        db = get_db()
+        
+        pipeline = [
+            {"$match": {
+                "startstation": start_station,
+                "endstation": end_station
+            }},
+            {"$group": {
+                "_id": "$carrier",
+                "total_flights": {"$sum": 1},
+                "states": {"$push": "$flightlegstate"},
+                "flight_numbers": {"$addToSet": "$flight_number"}
+            }}
+        ]
+        
+        results = list(db.flights.aggregate(pipeline))
+        
+        analysis = {
+            "route": f"{start_station} -> {end_station}",
+            "carriers_operating": [result["_id"] for result in results],
+            "total_flights_on_route": sum(result["total_flights"] for result in results),
+            "carrier_breakdown": [
+                {
+                    "carrier": result["_id"],
+                    "total_flights": result["total_flights"],
+                    "unique_flights": len(result["flight_numbers"]),
+                    "state_counts": {
+                        state: result["states"].count(state) 
+                        for state in set(result["states"])
+                    }
+                }
+                for result in results
+            ]
+        }
+        
+        logger.info(f"Route analysis completed for {start_station} to {end_station}")
+        return analysis
+        
+    except Exception as e:
+        logger.error(f"Error analyzing route {start_station} to {end_station}: {str(e)}")
+        return {"error": str(e)}
+
+@mcp.tool
+def get_busiest_routes(limit: int = 10) -> List[Dict[str, Any]]:
+    """Get the most frequently flown routes"""
+    logger.info(f"Finding top {limit} busiest routes")
+    try:
+        db = get_db()
+        
+        pipeline = [
+            {"$group": {
+                "_id": {
+                    "start_station": "$startstation",
+                    "end_station": "$endstation"
+                },
+                "total_flights": {"$sum": 1},
+                "carriers": {"$addToSet": "$carrier"},
+                "unique_flight_numbers": {"$addToSet": "$flight_number"}
+            }},
+            {"$sort": {"total_flights": -1}},
+            {"$limit": limit},
+            {"$project": {
+                "route": {
+                    "start_station": "$_id.start_station",
+                    "end_station": "$_id.end_station"
+                },
+                "total_flights": 1,
+                "carrier_count": {"$size": "$carriers"},
+                "unique_flights_count": {"$size": "$unique_flight_numbers"},
+                "carriers": 1
+            }}
+        ]
+        
+        results = list(db.flights.aggregate(pipeline))
+        logger.info(f"Found {len(results)} busiest routes")
+        return results
+        
+    except Exception as e:
+        logger.error(f"Error finding busiest routes: {str(e)}")
+        return []
+
+# ============ SEARCH AND DISCOVERY TOOLS ============
+
+@mcp.tool
+def search_flights(carrier: str = None, start_station: str = None, 
+                   end_station: str = None, date: str = None, 
+                   flightlegstate: str = None) -> List[Dict[str, Any]]:
+    """Search flights with multiple optional filters"""
+    logger.info(f"Searching flights with filters - carrier: {carrier}, from: {start_station}, to: {end_station}, date: {date}, state: {flightlegstate}")
+    
+    try:
+        db = get_db()
+        
+        # Build query dynamically based on provided filters
+        query = {}
+        if carrier:
+            query["carrier"] = carrier
+        if start_station:
+            query["startstation"] = start_station
+        if end_station:
+            query["endstation"] = end_station
+        if date:
+            query["dateoforigin"] = date
+        if flightlegstate:
+            query["flightlegstate"] = flightlegstate
+        
+        flights = list(db.flights.find(query))
+        logger.info(f"Found {len(flights)} flights matching search criteria")
+        return flights
+        
+    except Exception as e:
+        logger.error(f"Error in flight search: {str(e)}")
+        return []
+
+@mcp.tool
+def list_all_carriers() -> List[str]:
+    """Get list of all unique carriers in the database"""
+    logger.info("Fetching list of all carriers")
+    try:
+        db = get_db()
+        carriers = db.flights.distinct("carrier")
+        logger.info(f"Found {len(carriers)} unique carriers")
+        return sorted(carriers)
+    except Exception as e:
+        logger.error(f"Error fetching carriers: {str(e)}")
+        return []
+
+@mcp.tool
+def list_all_stations() -> Dict[str, List[str]]:
+    """Get list of all unique start and end stations"""
+    logger.info("Fetching list of all stations")
+    try:
+        db = get_db()
+        start_stations = sorted(db.flights.distinct("startstation"))
+        end_stations = sorted(db.flights.distinct("endstation"))
+        all_stations = sorted(set(start_stations + end_stations))
+        
+        logger.info(f"Found {len(start_stations)} start stations, {len(end_stations)} end stations, {len(all_stations)} total unique stations")
+        return {
+            "start_stations": start_stations,
+            "end_stations": end_stations,
+            "all_stations": all_stations
+        }
+    except Exception as e:
+        logger.error(f"Error fetching stations: {str(e)}")
+        return {"start_stations": [], "end_stations": [], "all_stations": []}
+
+@mcp.tool
+def get_available_dates() -> Dict[str, Any]:
+    """Get date range and available dates in the database"""
+    logger.info("Fetching available dates")
+    try:
+        db = get_db()
+        
+        pipeline = [
+            {"$group": {
+                "_id": None,
+                "earliest_date": {"$min": "$dateoforigin"},
+                "latest_date": {"$max": "$dateoforigin"},
+                "unique_dates": {"$addToSet": "$dateoforigin"}
+            }}
+        ]
+        
+        result = list(db.flights.aggregate(pipeline))
+        if result:
+            unique_dates = sorted(result[0]["unique_dates"])
+            return {
+                "earliest_date": result[0]["earliest_date"],
+                "latest_date": result[0]["latest_date"],
+                "total_days": len(unique_dates),
+                "date_range_days": (datetime.strptime(result[0]["latest_date"], "%Y-%m-%d") - 
+                                  datetime.strptime(result[0]["earliest_date"], "%Y-%m-%d")).days,
+                "sample_dates": unique_dates[:10]  # First 10 dates as sample
+            }
+        else:
+            return {"error": "No date data available"}
+            
+    except Exception as e:
+        logger.error(f"Error fetching available dates: {str(e)}")
+        return {"error": str(e)}
+
+# ============ RESOURCES ============
+
+@mcp.resource("flights://{flight_id}")
+def get_flight_resource(flight_id: str) -> Dict[str, Any]:
+    """Get flight data as a resource by ID"""
+    logger.info(f"Fetching flight resource: {flight_id}")
+    try:
+        db = get_db()
+        flight = db.flights.find_one({"_id": ObjectId(flight_id)})
+        if flight:
+            logger.info(f"Successfully retrieved flight {flight_id}")
+            return flight
+        else:
+            logger.warning(f"Flight not found: {flight_id}")
+            return {"error": "Flight not found"}
+    except Exception as e:
+        logger.error(f"Error fetching flight resource: {str(e)}")
+        return {"error": str(e)}
+
+@mcp.resource("carriers://{carrier}/flights")
+def get_carrier_flights_resource(carrier: str) -> List[Dict[str, Any]]:
+    """Get all flights for a carrier as a resource"""
+    logger.info(f"Fetching flights resource for carrier: {carrier}")
+    try:
+        db = get_db()
+        flights = list(db.flights.find({"carrier": carrier}))
+        logger.info(f"Found {len(flights)} flights for carrier {carrier}")
+        return flights
+    except Exception as e:
+        logger.error(f"Error fetching carrier flights resource: {str(e)}")
+        return []
+
+@mcp.resource("routes://{start_station}/{end_station}")
+def get_route_flights_resource(start_station: str, end_station: str) -> List[Dict[str, Any]]:
+    """Get all flights for a route as a resource"""
+    logger.info(f"Fetching flights resource for route: {start_station} to {end_station}")
+    try:
+        db = get_db()
+        flights = list(db.flights.find({
+            "startstation": start_station,
+            "endstation": end_station
+        }))
+        logger.info(f"Found {len(flights)} flights for route {start_station} to {end_station}")
+        return flights
+    except Exception as e:
+        logger.error(f"Error fetching route flights resource: {str(e)}")
+        return []
+
+if __name__ == "__main__":
+    logger.info("Starting Flight Data MCP Server with stdio transport")
+    
+    try:
+        # Initialize database connection
+        db = get_db()
+        
+        # Test connection and log basic info
+        carriers_count = len(list_all_carriers())
+        stations_info = list_all_stations()
+        
+        logger.info("✅ MongoDB connection established")
+        logger.info(f"📊 Database Info: {carriers_count} carriers, {len(stations_info['all_stations'])} stations")
+        logger.info("🚀 MCP Server starting with stdio transport...")
+        
+        # Start the server with stdio transport
+        mcp.run()
+        
+    except Exception as e:
+        logger.error(f"Failed to start MCP server: {str(e)}")
+        raise
+###############################################################mcp client
+mcp>=1.0.0
+openai>=1.0.0
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+asyncio
+##################################################################
+# Azure OpenAI Configuration
+AZURE_OPENAI_ENDPOINT=your_azure_openai_endpoint
+AZURE_OPENAI_KEY=your_azure_openai_key
+AZURE_API_VERSION=2024-02-01
+AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4o
+
+# MCP Server Configuration
+MCP_SERVER_PATH=../mcp-server/flight_server.py
+
+# Logging Configuration
+LOG_LEVEL=INFO
+####################################################################
+import os
+import logging
+from logging.handlers import RotatingFileHandler
+from datetime import datetime
+
+def setup_logger(name: str):
+    """Setup comprehensive logging configuration"""
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
+    
+    # Create logs directory if it doesn't exist
+    os.makedirs('logs', exist_ok=True)
+    
+    # File handler with rotation
+    file_handler = RotatingFileHandler(
+        f'logs/flight_client_{datetime.now().strftime("%Y%m%d")}.log',
+        maxBytes=10*1024*1024,
+        backupCount=5
+    )
+    
+    # Console handler
+    console_handler = logging.StreamHandler()
+    
+    # Formatter
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s'
+    )
+    
+    file_handler.setFormatter(formatter)
+    console_handler.setFormatter(formatter)
+    
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+    
+    return logger
+#####################################################################
+import os
+from openai import AzureOpenAI
+from config import setup_logger
+import time
+from dotenv import load_dotenv
+
+class AzureOpenAIClient:
+    def __init__(self):
+        self.logger = setup_logger("AzureOpenAIClient")
+        self.max_retries = 3
+        self.retry_delay = 1
+        
+        # Load environment variables
+        load_dotenv()
+        
+        # Validate required environment variables
+        azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+        api_key = os.getenv("AZURE_OPENAI_KEY")
+        api_version = os.getenv("AZURE_API_VERSION", "2024-02-01")
+        deployment_name = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-4o")
+        
+        if not azure_endpoint:
+            raise ValueError("AZURE_OPENAI_ENDPOINT environment variable is required")
+        if not api_key:
+            raise ValueError("AZURE_OPENAI_KEY environment variable is required")
+        
+        self.client = AzureOpenAI(
+            azure_endpoint=azure_endpoint,
+            api_key=api_key,
+            api_version=api_version
+        )
+        self.deployment_name = deployment_name
+        
+        self.logger.info("Azure OpenAI client initialized successfully")
+    
+    def generate_response(self, prompt: str, system_message: str = None, max_tokens: int = 1000):
+        """Generate response using Azure OpenAI GPT-4o with retry logic"""
+        for attempt in range(self.max_retries):
+            try:
+                self.logger.info(f"Generating AI response for prompt: {prompt[:100]}...")
+                
+                messages = []
+                if system_message:
+                    messages.append({"role": "system", "content": system_message})
+                
+                messages.append({"role": "user", "content": prompt})
+                
+                response = self.client.chat.completions.create(
+                    model=self.deployment_name,
+                    messages=messages,
+                    max_tokens=max_tokens,
+                    temperature=0.7
+                )
+                
+                result = response.choices[0].message.content
+                self.logger.info("Successfully generated response from Azure OpenAI")
+                return result
+                
+            except Exception as e:
+                self.logger.error(f"Attempt {attempt + 1} failed: {str(e)}")
+                if attempt < self.max_retries - 1:
+                    time.sleep(self.retry_delay * (attempt + 1))
+                    continue
+                else:
+                    self.logger.error(f"All {self.max_retries} attempts failed")
+                    raise
+###########################################################################################
+import asyncio
+import os
+import json
+from typing import Dict, Any, List
+from dotenv import load_dotenv
+from config import setup_logger
+from azure_client import AzureOpenAIClient
+
+# Load environment variables
+load_dotenv()
+
+# MCP imports
+try:
+    from mcp import ClientSession, StdioServerParameters
+    from mcp.client.stdio import stdio_client
+except ImportError:
+    print("MCP library not found. Install with: pip install mcp")
+    exit(1)
+
+class FlightDataClient:
+    def __init__(self):
+        self.logger = setup_logger("FlightClient")
+        self.azure_client = AzureOpenAIClient()
+        self.session = None
+        
+        # MCP Server configuration
+        self.server_path = os.getenv("MCP_SERVER_PATH", "../mcp-server/flight_server.py")
+        
+        self.logger.info("Flight Data Client initialized")
+
+    async def connect_to_server(self):
+        """Connect to the MCP server"""
+        try:
+            server_params = StdioServerParameters(
+                command="python",
+                args=[self.server_path]
+            )
+            
+            async with stdio_client(server_params) as (read, write):
+                async with ClientSession(read, write) as session:
+                    self.session = session
+                    # Initialize the session
+                    init_result = await session.initialize()
+                    self.logger.info(f"Connected to MCP server: {init_result}")
+                    
+                    # List available tools
+                    tools_result = await session.list_tools()
+                    self.available_tools = {tool.name: tool for tool in tools_result.tools}
+                    self.logger.info(f"Available tools: {list(self.available_tools.keys())}")
+                    
+                    return True
+                    
+        except Exception as e:
+            self.logger.error(f"Failed to connect to MCP server: {e}")
+            return False
+
+    async def call_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Any:
+        """Call a tool on the MCP server"""
+        if not self.session:
+            raise RuntimeError("Not connected to MCP server")
+        
+        if tool_name not in self.available_tools:
+            raise ValueError(f"Tool {tool_name} not available")
+        
+        try:
+            result = await self.session.call_tool(tool_name, arguments)
+            self.logger.info(f"Tool {tool_name} executed successfully")
+            return result
+        except Exception as e:
+            self.logger.error(f"Error calling tool {tool_name}: {e}")
+            raise
+
+    async def get_ai_analysis(self, user_query: str, context_data: Dict[str, Any] = None) -> str:
+        """Use LLM to analyze flight data and provide insights"""
+        try:
+            # Gather relevant data based on query
+            flight_data = await self.gather_relevant_data(user_query)
+            
+            prompt = f"""
+            User Query: {user_query}
+            
+            Available Flight Data:
+            {json.dumps(flight_data, indent=2, default=str)}
+            
+            Additional Context:
+            {json.dumps(context_data, indent=2) if context_data else "No additional context"}
+            
+            Please analyze this flight data and provide:
+            1. Direct answers to the user's query
+            2. Data-driven insights and patterns
+            3. Actionable recommendations if applicable
+            4. Any limitations or data gaps noticed
+            
+            Be concise, analytical, and helpful.
+            """
+            
+            system_message = """You are an expert flight data analyst. You have access to comprehensive 
+            flight data including carriers, routes, dates, and flight statuses. Provide accurate, 
+            data-driven insights and helpful recommendations based on the available data."""
+            
+            analysis = self.azure_client.generate_response(
+                prompt=prompt,
+                system_message=system_message,
+                max_tokens=1200
+            )
+            
+            return analysis
+            
+        except Exception as e:
+            self.logger.error(f"Error in AI analysis: {e}")
+            return f"Error generating analysis: {str(e)}"
+
+    async def gather_relevant_data(self, user_query: str) -> Dict[str, Any]:
+        """Gather relevant flight data based on the user query"""
+        data = {}
+        
+        try:
+            # Get basic database info
+            data["carriers"] = await self.call_tool("list_all_carriers", {})
+            data["stations"] = await self.call_tool("list_all_stations", {})
+            data["available_dates"] = await self.call_tool("get_available_dates", {})
+            
+            # Extract potential entities from query for more targeted data gathering
+            query_lower = user_query.lower()
+            
+            # Check for carrier mentions
+            for carrier in data["carriers"]:
+                if carrier.lower() in query_lower:
+                    data[f"carrier_{carrier}_stats"] = await self.call_tool("get_carrier_statistics", {"carrier": carrier})
+                    data[f"carrier_{carrier}_flights"] = await self.call_tool("get_flights_by_carrier", {"carrier": carrier})
+                    break
+            
+            # Check for route mentions
+            stations = data["stations"]["all_stations"]
+            for i, station1 in enumerate(stations):
+                for station2 in stations[i+1:]:
+                    if station1.lower() in query_lower and station2.lower() in query_lower:
+                        data[f"route_{station1}_{station2}"] = await self.call_tool("get_route_analysis", {
+                            "start_station": station1, 
+                            "end_station": station2
+                        })
+                        break
+            
+            # Get busiest routes for general context
+            data["busiest_routes"] = await self.call_tool("get_busiest_routes", {"limit": 5})
+            
+        except Exception as e:
+            self.logger.warning(f"Error gathering additional data: {e}")
+            # Continue with basic data
+        
+        return data
+
+    async def process_natural_language_query(self, user_query: str) -> Dict[str, Any]:
+        """Process natural language queries using LLM to determine actions"""
+        try:
+            # First, use LLM to determine what tools to call
+            planning_prompt = f"""
+            User Query: {user_query}
+            
+            Available Tools:
+            - get_flights_by_carrier(carrier): Get flights by airline
+            - get_flights_by_route(start_station, end_station): Get flights between airports  
+            - get_flights_by_date(date): Get flights for specific date
+            - get_flight_by_number(flight_number): Get specific flight
+            - get_flights_by_state(flightlegstate): Get flights by status
+            - get_carrier_statistics(carrier): Get carrier stats
+            - get_route_analysis(start_station, end_station): Analyze route
+            - search_flights(): Multi-criteria search
+            - list_all_carriers(): List all airlines
+            - list_all_stations(): List all airports
+            - get_busiest_routes(): Get popular routes
+            
+            Determine which tool(s) to call and with what parameters. Return JSON with:
+            {{
+                "tools": [
+                    {{
+                        "name": "tool_name",
+                        "arguments": {{"param": "value"}}
+                    }}
+                ],
+                "needs_analysis": true/false  # Whether LLM analysis is needed
+            }}
+            """
+            
+            planning_response = self.azure_client.generate_response(
+                prompt=planning_prompt,
+                system_message="You are a tool selection expert. Analyze user queries and determine which flight data tools to call.",
+                max_tokens=500
+            )
+            
+            # Parse the JSON response
+            try:
+                plan = json.loads(planning_response)
+            except:
+                # Fallback: just do analysis
+                plan = {"tools": [], "needs_analysis": True}
+            
+            results = {}
+            
+            # Execute planned tools
+            for tool_call in plan.get("tools", []):
+                try:
+                    tool_name = tool_call["name"]
+                    arguments = tool_call["arguments"]
+                    results[tool_name] = await self.call_tool(tool_name, arguments)
+                except Exception as e:
+                    self.logger.error(f"Error executing tool {tool_call['name']}: {e}")
+                    results[tool_name] = {"error": str(e)}
+            
+            # Generate AI analysis if needed
+            if plan.get("needs_analysis", True):
+                analysis = await self.get_ai_analysis(user_query, results)
+                results["ai_analysis"] = analysis
+            
+            return results
+            
+        except Exception as e:
+            self.logger.error(f"Error processing natural language query: {e}")
+            return {"error": str(e)}
+
+    async def interactive_chat(self):
+        """Run an interactive chat session"""
+        print("\n🚀 Flight Data AI Assistant")
+        print("=" * 50)
+        print("Ask questions about flights, carriers, routes, or analysis")
+        print("Type 'quit' to exit\n")
+        
+        while True:
+            try:
+                user_input = input("You: ").strip()
+                
+                if user_input.lower() in ['quit', 'exit', 'bye']:
+                    print("Goodbye!")
+                    break
+                
+                if not user_input:
+                    continue
+                
+                print("Analyzing...")
+                results = await self.process_natural_language_query(user_input)
+                
+                # Display results
+                if "ai_analysis" in results:
+                    print(f"\n🤖 AI Analysis:\n{results['ai_analysis']}\n")
+                
+                # Show raw data summary
+                data_keys = [k for k in results.keys() if k != "ai_analysis" and k != "error"]
+                if data_keys:
+                    print(f"📊 Data Retrieved: {', '.join(data_keys)}")
+                
+                print("-" * 50)
+                
+            except KeyboardInterrupt:
+                print("\nGoodbye!")
+                break
+            except Exception as e:
+                print(f"Error: {e}")
+
+async def main():
+    """Main function to run the client"""
+    client = FlightDataClient()
+    
+    print("Connecting to Flight Data Server...")
+    if await client.connect_to_server():
+        print("✅ Connected successfully!")
+        await client.interactive_chat()
+    else:
+        print("❌ Failed to connect to server")
+
+if __name__ == "__main__":
+    asyncio.run(main())
+####################################################
+
+    return logger
