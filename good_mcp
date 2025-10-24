@@ -1,0 +1,396 @@
+# flight_server.py
+from fastmcp import FastMCP
+from pymongo import MongoClient
+import os
+from typing import List, Dict, Any
+from datetime import datetime
+from bson import ObjectId
+import json
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# Initialize MCP server
+mcp = FastMCP("Flight Data Server", description="MCP server for flight data operations")
+
+# MongoDB connection
+def get_database():
+    """Get MongoDB database connection"""
+    MONGO_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
+    DB_NAME = os.getenv("DB_NAME", "flight_database")
+    
+    client = MongoClient(MONGO_URI)
+    return client[DB_NAME]
+
+# ============ CORE FLIGHT DATA TOOLS ============
+
+@mcp.tool
+def get_flights_by_carrier(carrier: str) -> List[Dict[str, Any]]:
+    """Get all flights for a specific airline carrier"""
+    try:
+        db = get_database()
+        flights = list(db.flights.find({"carrier": carrier}))
+        return flights
+    except Exception as e:
+        return {"error": f"Failed to fetch flights: {str(e)}"}
+
+@mcp.tool
+def get_flights_by_route(start_station: str, end_station: str) -> List[Dict[str, Any]]:
+    """Get flights between two stations (airports)"""
+    try:
+        db = get_database()
+        flights = list(db.flights.find({
+            "startstation": start_station,
+            "endstation": end_station
+        }))
+        return flights
+    except Exception as e:
+        return {"error": f"Failed to fetch flights: {str(e)}"}
+
+@mcp.tool
+def get_flights_by_date(date: str) -> List[Dict[str, Any]]:
+    """Get all flights for a specific date (YYYY-MM-DD format)"""
+    try:
+        db = get_database()
+        flights = list(db.flights.find({"dateoforigin": date}))
+        return flights
+    except Exception as e:
+        return {"error": f"Failed to fetch flights: {str(e)}"}
+
+@mcp.tool
+def get_flight_by_number(flight_number: str) -> Dict[str, Any]:
+    """Get specific flight by flight number"""
+    try:
+        db = get_database()
+        flight = db.flights.find_one({"flight_number": flight_number})
+        if flight:
+            return flight
+        else:
+            return {"error": "Flight not found"}
+    except Exception as e:
+        return {"error": f"Failed to fetch flight: {str(e)}"}
+
+@mcp.tool
+def get_flights_by_state(flightlegstate: str) -> List[Dict[str, Any]]:
+    """Get flights by their current state (Scheduled, Active, Completed, etc.)"""
+    try:
+        db = get_database()
+        flights = list(db.flights.find({"flightlegstate": flightlegstate}))
+        return flights
+    except Exception as e:
+        return {"error": f"Failed to fetch flights: {str(e)}"}
+
+@mcp.tool
+def search_flights(
+    carrier: str = None, 
+    start_station: str = None, 
+    end_station: str = None, 
+    date: str = None,
+    flightlegstate: str = None
+) -> List[Dict[str, Any]]:
+    """Search flights with multiple optional filters"""
+    try:
+        db = get_database()
+        
+        query = {}
+        if carrier:
+            query["carrier"] = carrier
+        if start_station:
+            query["startstation"] = start_station
+        if end_station:
+            query["endstation"] = end_station
+        if date:
+            query["dateoforigin"] = date
+        if flightlegstate:
+            query["flightlegstate"] = flightlegstate
+        
+        flights = list(db.flights.find(query))
+        return flights
+    except Exception as e:
+        return {"error": f"Failed to search flights: {str(e)}"}
+
+@mcp.tool
+def get_carrier_statistics(carrier: str) -> Dict[str, Any]:
+    """Get statistics for a specific carrier"""
+    try:
+        db = get_database()
+        
+        # Total flights
+        total_flights = db.flights.count_documents({"carrier": carrier})
+        
+        # Unique routes
+        pipeline = [
+            {"$match": {"carrier": carrier}},
+            {"$group": {"_id": {"start": "$startstation", "end": "$endstation"}}},
+            {"$count": "unique_routes"}
+        ]
+        route_result = list(db.flights.aggregate(pipeline))
+        unique_routes = route_result[0]["unique_routes"] if route_result else 0
+        
+        # Flight states distribution
+        state_pipeline = [
+            {"$match": {"carrier": carrier}},
+            {"$group": {"_id": "$flightlegstate", "count": {"$sum": 1}}}
+        ]
+        state_results = list(db.flights.aggregate(state_pipeline))
+        state_distribution = {result["_id"]: result["count"] for result in state_results}
+        
+        return {
+            "carrier": carrier,
+            "total_flights": total_flights,
+            "unique_routes": unique_routes,
+            "state_distribution": state_distribution
+        }
+    except Exception as e:
+        return {"error": f"Failed to get statistics: {str(e)}"}
+
+@mcp.tool
+def list_all_carriers() -> List[str]:
+    """Get list of all unique carriers in the database"""
+    try:
+        db = get_database()
+        carriers = db.flights.distinct("carrier")
+        return sorted(carriers)
+    except Exception as e:
+        return {"error": f"Failed to list carriers: {str(e)}"}
+
+@mcp.tool
+def list_all_stations() -> Dict[str, List[str]]:
+    """Get list of all unique start and end stations"""
+    try:
+        db = get_database()
+        start_stations = sorted(db.flights.distinct("startstation"))
+        end_stations = sorted(db.flights.distinct("endstation"))
+        
+        return {
+            "start_stations": start_stations,
+            "end_stations": end_stations
+        }
+    except Exception as e:
+        return {"error": f"Failed to list stations: {str(e)}"}
+
+# ============ RESOURCES ============
+
+@mcp.resource("flights://{flight_id}")
+def get_flight_resource(flight_id: str) -> Dict[str, Any]:
+    """Get flight data as a resource by ID"""
+    try:
+        db = get_database()
+        flight = db.flights.find_one({"_id": ObjectId(flight_id)})
+        if flight:
+            return flight
+        else:
+            return {"error": "Flight not found"}
+    except Exception as e:
+        return {"error": f"Failed to fetch flight resource: {str(e)}"}
+
+@mcp.resource("carriers://{carrier}/flights")
+def get_carrier_flights_resource(carrier: str) -> List[Dict[str, Any]]:
+    """Get all flights for a carrier as a resource"""
+    try:
+        db = get_database()
+        flights = list(db.flights.find({"carrier": carrier}))
+        return flights
+    except Exception as e:
+        return {"error": f"Failed to fetch carrier flights: {str(e)}"}
+
+if __name__ == "__main__":
+    # Start server with Streamable HTTP transport
+    mcp.run(
+        transport="http",
+        host="127.0.0.1", 
+        port=8000,
+        path="/mcp"
+    )
+##############################################################################
+# flight_client.py
+import asyncio
+import os
+import json
+from typing import Dict, Any, List
+from dotenv import load_dotenv
+from openai import AzureOpenAI
+
+# Load environment variables
+load_dotenv()
+
+class FlightDataClient:
+    def __init__(self):
+        self.server_url = "http://127.0.0.1:8000/mcp"
+        
+        # Initialize Azure OpenAI client
+        self.azure_client = AzureOpenAI(
+            azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+            api_key=os.getenv("AZURE_OPENAI_KEY"),
+            api_version=os.getenv("AZURE_API_VERSION", "2024-02-01")
+        )
+        self.deployment_name = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-4o")
+        
+        print("Flight Data Client initialized with Azure OpenAI")
+
+    async def call_server_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Any:
+        """Call a tool on the MCP server via HTTP transport"""
+        try:
+            # For production, you would use proper MCP client library
+            # This is a simplified version for demonstration
+            import httpx
+            
+            async with httpx.AsyncClient() as client:
+                # MCP JSON-RPC request
+                request_data = {
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "tools/call",
+                    "params": {
+                        "name": tool_name,
+                        "arguments": arguments
+                    }
+                }
+                
+                response = await client.post(
+                    self.server_url,
+                    json=request_data,
+                    headers={"Content-Type": "application/json"}
+                )
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    return result.get("result", {})
+                else:
+                    return {"error": f"HTTP {response.status_code}: {response.text}"}
+                    
+        except Exception as e:
+            return {"error": f"Failed to call tool: {str(e)}"}
+
+    def generate_ai_analysis(self, prompt: str, context_data: Dict[str, Any] = None) -> str:
+        """Use Azure OpenAI to generate analysis"""
+        try:
+            messages = []
+            
+            # System message
+            system_message = """You are a flight data analyst. Analyze flight data and provide 
+            insightful, data-driven analysis. Focus on patterns, trends, and actionable insights."""
+            messages.append({"role": "system", "content": system_message})
+            
+            # User prompt with context
+            user_content = f"User Query: {prompt}\n\n"
+            if context_data:
+                user_content += f"Context Data: {json.dumps(context_data, indent=2, default=str)}\n\n"
+            user_content += "Please provide a comprehensive analysis based on the available flight data."
+            
+            messages.append({"role": "user", "content": user_content})
+            
+            response = self.azure_client.chat.completions.create(
+                model=self.deployment_name,
+                messages=messages,
+                max_tokens=1000,
+                temperature=0.7
+            )
+            
+            return response.choices[0].message.content
+            
+        except Exception as e:
+            return f"Error generating AI analysis: {str(e)}"
+
+    async def process_natural_query(self, user_query: str) -> Dict[str, Any]:
+        """Process natural language queries using AI to determine server calls"""
+        try:
+            # First, get available data from server
+            carriers = await self.call_server_tool("list_all_carriers", {})
+            stations = await self.call_server_tool("list_all_stations", {})
+            
+            # Use AI to determine which tools to call
+            planning_prompt = f"""
+            User Query: "{user_query}"
+            
+            Available data sources:
+            - Carriers: {carriers}
+            - Stations: {stations}
+            
+            Based on the query, determine which flight data tools to call and return ONLY a JSON response:
+            {{
+                "tools_to_call": [
+                    {{
+                        "tool_name": "tool_name",
+                        "arguments": {{"param": "value"}}
+                    }}
+                ]
+            }}
+            """
+            
+            # Get AI planning decision
+            ai_plan = self.generate_ai_analysis(planning_prompt)
+            
+            try:
+                # Parse AI response to get tool calls
+                plan = json.loads(ai_plan)
+            except:
+                # Fallback: use basic analysis
+                plan = {"tools_to_call": []}
+            
+            # Execute planned tool calls
+            results = {}
+            for tool_call in plan.get("tools_to_call", []):
+                tool_name = tool_call["tool_name"]
+                arguments = tool_call["arguments"]
+                
+                tool_result = await self.call_server_tool(tool_name, arguments)
+                results[tool_name] = tool_result
+            
+            # Generate final AI analysis
+            if results:
+                analysis = self.generate_ai_analysis(user_query, results)
+                results["ai_analysis"] = analysis
+            
+            return results
+            
+        except Exception as e:
+            return {"error": f"Query processing failed: {str(e)}"}
+
+    async def interactive_session(self):
+        """Run interactive session with the flight data system"""
+        print("\n🚀 Flight Data AI Assistant")
+        print("=" * 50)
+        print("Connected to MCP Server via Streamable HTTP")
+        print("Azure OpenAI integration active")
+        print("Type 'quit' to exit\n")
+        
+        while True:
+            try:
+                user_input = input("\n💬 You: ").strip()
+                
+                if user_input.lower() in ['quit', 'exit', 'bye']:
+                    print("👋 Goodbye!")
+                    break
+                
+                if not user_input:
+                    continue
+                
+                print("🔄 Processing...")
+                results = await self.process_natural_query(user_input)
+                
+                # Display results
+                if "ai_analysis" in results:
+                    print(f"\n🤖 AI Analysis:\n{results['ai_analysis']}\n")
+                
+                # Show data sources used
+                data_sources = [k for k in results.keys() if k != "ai_analysis" and k != "error"]
+                if data_sources:
+                    print(f"📊 Data sources used: {', '.join(data_sources)}")
+                
+                print("-" * 50)
+                
+            except KeyboardInterrupt:
+                print("\n👋 Goodbye!")
+                break
+            except Exception as e:
+                print(f"❌ Error: {e}")
+
+async def main():
+    client = FlightDataClient()
+    await client.interactive_session()
+
+if __name__ == "__main__":
+    asyncio.run(main())
+############################################################################################
