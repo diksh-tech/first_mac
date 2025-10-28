@@ -1,0 +1,955 @@
+npm create vite@latest flightops-chatbot -- --template react-ts
+cd flightops-chatbot
+npm install
+npm install -D tailwindcss postcss autoprefixer
+npx tailwindcss init -p
+##############################################
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: [
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        'indigo-blue': '#1A237E',
+        'indigo-red': '#E53935',
+      },
+    },
+  },
+  plugins: [],
+}
+##########################################################
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+############################################################
+mkdir backend
+cd backend
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install fastapi uvicorn python-dotenv motor openai
+############################################################
+import os
+import logging
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from mcp_client import FlightOpsMCPClient
+
+app = FastAPI()
+
+# CORS middleware to allow frontend to communicate with backend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # Vite default port
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Initialize MCP client
+mcp_client = FlightOpsMCPClient()
+
+class ChatRequest(BaseModel):
+    message: str
+
+class ChatResponse(BaseModel):
+    response: dict
+
+@app.on_event("startup")
+async def startup_event():
+    await mcp_client.connect()
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    await mcp_client.disconnect()
+
+@app.post("/chat", response_model=ChatResponse)
+async def chat(request: ChatRequest):
+    try:
+        result = await mcp_client.run_query(request.message)
+        return ChatResponse(response=result)
+    except Exception as e:
+        logging.error(f"Error in chat endpoint: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+###################################################################
+import React, { useState, useRef, useEffect } from 'react';
+
+interface Message {
+  id: number;
+  text: string;
+  isUser: boolean;
+}
+
+const App: React.FC = () => {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const sendMessage = async () => {
+    if (input.trim() === '') return;
+
+    const userMessage: Message = {
+      id: Date.now(),
+      text: input,
+      isUser: true,
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setInput('');
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('http://localhost:8000/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message: input }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+
+      const data = await response.json();
+      const botMessage: Message = {
+        id: Date.now() + 1,
+        text: data.response.summary?.summary || JSON.stringify(data.response, null, 2),
+        isUser: false,
+      };
+
+      setMessages(prev => [...prev, botMessage]);
+    } catch (error) {
+      console.error('Error:', error);
+      const errorMessage: Message = {
+        id: Date.now() + 1,
+        text: 'Sorry, I encountered an error. Please try again.',
+        isUser: false,
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-screen bg-gray-100">
+      {/* Header */}
+      <header className="bg-indigo-blue text-white p-4 shadow-md">
+        <h1 className="text-2xl font-bold">Indigo Airlines Flight Assistant</h1>
+      </header>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {messages.map(message => (
+          <div
+            key={message.id}
+            className={`flex ${message.isUser ? 'justify-end' : 'justify-start'}`}
+          >
+            <div
+              className={`max-w-xs md:max-w-md lg:max-w-lg xl:max-w-xl rounded-lg p-3 ${
+                message.isUser
+                  ? 'bg-indigo-blue text-white rounded-br-none'
+                  : 'bg-white text-gray-800 rounded-bl-none shadow'
+              }`}
+            >
+              {message.text}
+            </div>
+          </div>
+        ))}
+        {isLoading && (
+          <div className="flex justify-start">
+            <div className="bg-white text-gray-800 rounded-lg rounded-bl-none shadow p-3">
+              <div className="flex space-x-2">
+                <div className="w-3 h-3 bg-gray-400 rounded-full animate-bounce"></div>
+                <div className="w-3 h-3 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                <div className="w-3 h-3 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+              </div>
+            </div>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input */}
+      <div className="bg-white border-t p-4">
+        <div className="flex space-x-2">
+          <textarea
+            className="flex-1 border rounded-lg p-2 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-blue"
+            rows={1}
+            placeholder="Type your message..."
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyPress={handleKeyPress}
+          />
+          <button
+            className="bg-indigo-blue text-white rounded-lg px-4 py-2 font-semibold hover:bg-blue-800 transition duration-200"
+            onClick={sendMessage}
+            disabled={isLoading}
+          >
+            Send
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default App;
+#############################################################################################
+<header className="bg-indigo-blue text-white p-4 shadow-md flex items-center">
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    className="h-8 w-8 mr-2"
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+    />
+  </svg>
+  <h1 className="text-2xl font-bold">Indigo Airlines Flight Assistant</h1>
+</header>
+####################################################################################
+<div className="flex flex-col h-screen bg-blue-50">
+####################################################################################
+step1
+# Create new React + Vite project
+npm create vite@latest flightops-chatbot -- --template react
+cd flightops-chatbot
+
+# Install dependencies
+npm install
+npm install -D tailwindcss postcss autoprefixer
+npm install axios lucide-react react-markdown
+npm install -D @types/react @types/react-dom
+
+# Initialize Tailwind
+npx tailwindcss init -p
+#########################################################################################
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: [
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        'indigo': {
+          50: '#eef2ff',
+          100: '#e0e7ff',
+          500: '#6366f1',
+          600: '#4f46e5',
+          700: '#4338ca',
+          800: '#3730a3',
+          900: '#312e81',
+        },
+        'aviation': {
+          blue: '#1e40af',
+          sky: '#38bdf8',
+          cloud: '#f0f9ff',
+          night: '#0f172a'
+        }
+      },
+      animation: {
+        'float': 'float 6s ease-in-out infinite',
+        'takeoff': 'takeoff 2s ease-out',
+        'landing': 'landing 2s ease-in',
+        'radar': 'radar 2s linear infinite',
+      },
+      keyframes: {
+        float: {
+          '0%, 100%': { transform: 'translateY(0px)' },
+          '50%': { transform: 'translateY(-20px)' },
+        },
+        takeoff: {
+          '0%': { transform: 'translateY(100px) scale(0.8)', opacity: '0' },
+          '100%': { transform: 'translateY(0) scale(1)', opacity: '1' },
+        },
+        landing: {
+          '0%': { transform: 'translateY(-100px) scale(1.2)', opacity: '0' },
+          '100%': { transform: 'translateY(0) scale(1)', opacity: '1' },
+        },
+        radar: {
+          '0%': { transform: 'rotate(0deg)' },
+          '100%': { transform: 'rotate(360deg)' },
+        }
+      }
+    },
+  },
+  plugins: [],
+}
+###################################################################################
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+import asyncio
+import os
+import sys
+
+# Add the parent directory to path to import your existing client
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+
+from client import FlightOpsMCPClient
+
+app = FastAPI(title="FlightOps Chatbot API")
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # Vite dev server
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Global MCP client instance
+mcp_client = None
+
+class ChatMessage(BaseModel):
+    message: str
+    session_id: str = "default"
+
+class FlightQuery(BaseModel):
+    carrier: str = ""
+    flight_number: str = ""
+    date: str = ""
+    query_type: str = "basic"  # basic, operations, equipment, delays, fuel, passengers, crew
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize MCP client on startup"""
+    global mcp_client
+    try:
+        mcp_client = FlightOpsMCPClient()
+        await mcp_client.connect()
+        print("✅ MCP Client connected successfully")
+    except Exception as e:
+        print(f"❌ Failed to connect MCP client: {e}")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup MCP client on shutdown"""
+    global mcp_client
+    if mcp_client:
+        await mcp_client.disconnect()
+
+@app.post("/api/chat")
+async def chat_endpoint(chat_message: ChatMessage):
+    """Main chat endpoint that uses MCP tools"""
+    try:
+        if not mcp_client:
+            raise HTTPException(status_code=503, detail="MCP client not initialized")
+        
+        result = await mcp_client.run_query(chat_message.message)
+        return {
+            "success": True,
+            "response": result.get("summary", {}).get("summary", "No response generated"),
+            "raw_data": result,
+            "session_id": chat_message.session_id
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Chat processing failed: {str(e)}")
+
+@app.post("/api/flight/query")
+async def flight_query_endpoint(query: FlightQuery):
+    """Direct flight data query endpoint"""
+    try:
+        if not mcp_client:
+            raise HTTPException(status_code=503, detail="MCP client not initialized")
+        
+        # Build query based on type
+        queries = {
+            "basic": f"Get basic info for {query.carrier} {query.flight_number} on {query.date}",
+            "operations": f"Get operation times for {query.carrier} {query.flight_number} on {query.date}",
+            "equipment": f"Get equipment info for {query.carrier} {query.flight_number} on {query.date}",
+            "delays": f"Get delay summary for {query.carrier} {query.flight_number} on {query.date}",
+            "fuel": f"Get fuel summary for {query.carrier} {query.flight_number} on {query.date}",
+            "passengers": f"Get passenger info for {query.carrier} {query.flight_number} on {query.date}",
+            "crew": f"Get crew info for {query.carrier} {query.flight_number} on {query.date}",
+        }
+        
+        user_query = queries.get(query.query_type, queries["basic"])
+        result = await mcp_client.run_query(user_query)
+        
+        return {
+            "success": True,
+            "data": result,
+            "query_type": query.query_type
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Flight query failed: {str(e)}")
+
+@app.get("/api/health")
+async def health_check():
+    """Health check endpoint"""
+    return {
+        "status": "healthy",
+        "mcp_connected": mcp_client is not None,
+        "service": "FlightOps Chatbot API"
+    }
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+#######################################################################################
+export interface Message {
+  id: string;
+  text: string;
+  isUser: boolean;
+  timestamp: Date;
+  type: 'text' | 'flight_data' | 'error';
+  data?: any;
+}
+
+export interface FlightData {
+  carrier?: string;
+  flightNumber?: string;
+  dateOfOrigin?: string;
+  startStation?: string;
+  endStation?: string;
+  status?: string;
+  equipment?: any;
+  delays?: any;
+  fuel?: any;
+  passengers?: any;
+}
+
+export interface ChatSession {
+  id: string;
+  title: string;
+  messages: Message[];
+  createdAt: Date;
+}
+##################################################################
+import axios from 'axios';
+
+const API_BASE_URL = 'http://localhost:8000';
+
+export const api = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+export const chatAPI = {
+  sendMessage: async (message: string, sessionId: string = 'default') => {
+    const response = await api.post('/api/chat', {
+      message,
+      session_id: sessionId,
+    });
+    return response.data;
+  },
+
+  queryFlight: async (carrier: string, flightNumber: string, date: string, queryType: string) => {
+    const response = await api.post('/api/flight/query', {
+      carrier,
+      flight_number: flightNumber,
+      date,
+      query_type: queryType,
+    });
+    return response.data;
+  },
+
+  healthCheck: async () => {
+    const response = await api.get('/api/health');
+    return response.data;
+  },
+};
+###############################################################################
+import React, { useState, useRef, useEffect } from 'react';
+import { Send, Plane, Cloud, Radar, Settings, User, Bot } from 'lucide-react';
+import { Message, FlightData } from '../types';
+import { chatAPI } from '../services/api';
+import { MessageBubble } from './MessageBubble';
+import { FlightDataView } from './FlightDataView';
+import { QuickActions } from './QuickActions';
+
+export const Chatbot: React.FC = () => {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Initial health check
+    checkConnection();
+    
+    // Add welcome message
+    setMessages([{
+      id: '1',
+      text: "Welcome to FlightOps Assistant! I can help you with flight information, operations data, equipment details, delays, fuel summaries, and more. How can I assist you today?",
+      isUser: false,
+      timestamp: new Date(),
+      type: 'text'
+    }]);
+  }, []);
+
+  const checkConnection = async () => {
+    try {
+      await chatAPI.healthCheck();
+      setConnectionStatus('connected');
+    } catch (error) {
+      setConnectionStatus('error');
+    }
+  };
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const handleSend = async () => {
+    if (!input.trim() || isLoading) return;
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      text: input,
+      isUser: true,
+      timestamp: new Date(),
+      type: 'text'
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setInput('');
+    setIsLoading(true);
+
+    try {
+      const response = await chatAPI.sendMessage(input);
+      
+      const botMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        text: response.response,
+        isUser: false,
+        timestamp: new Date(),
+        type: 'text',
+        data: response.raw_data
+      };
+
+      setMessages(prev => [...prev, botMessage]);
+    } catch (error) {
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        text: "Sorry, I encountered an error while processing your request. Please try again.",
+        isUser: false,
+        timestamp: new Date(),
+        type: 'error'
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleQuickAction = (action: string) => {
+    setInput(action);
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-screen bg-gradient-to-br from-aviation-night to-indigo-900">
+      {/* Header */}
+      <div className="bg-indigo-800/50 backdrop-blur-sm border-b border-indigo-600 p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="relative">
+              <Plane className="h-8 w-8 text-white animate-float" />
+              <Radar className="h-4 w-4 text-aviation-sky absolute -top-1 -right-1 animate-radar" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-white">FlightOps Assistant</h1>
+              <div className="flex items-center space-x-2">
+                <div className={`w-2 h-2 rounded-full ${
+                  connectionStatus === 'connected' ? 'bg-green-400' : 
+                  connectionStatus === 'error' ? 'bg-red-400' : 'bg-yellow-400'
+                }`} />
+                <span className="text-sm text-indigo-200">
+                  {connectionStatus === 'connected' ? 'Connected to MCP Server' : 
+                   connectionStatus === 'error' ? 'Connection Error' : 'Connecting...'}
+                </span>
+              </div>
+            </div>
+          </div>
+          <Cloud className="h-6 w-6 text-aviation-sky animate-pulse" />
+        </div>
+      </div>
+
+      {/* Messages Area */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {messages.map((message) => (
+          <MessageBubble key={message.id} message={message} />
+        ))}
+        
+        {isLoading && (
+          <div className="flex items-center space-x-2 text-aviation-sky animate-pulse">
+            <Bot className="h-5 w-5" />
+            <div className="flex space-x-1">
+              <div className="w-2 h-2 bg-aviation-sky rounded-full animate-bounce" />
+              <div className="w-2 h-2 bg-aviation-sky rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
+              <div className="w-2 h-2 bg-aviation-sky rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+            </div>
+          </div>
+        )}
+        
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Quick Actions */}
+      <QuickActions onActionSelect={handleQuickAction} />
+
+      {/* Input Area */}
+      <div className="border-t border-indigo-700 p-4 bg-indigo-800/30 backdrop-blur-sm">
+        <div className="flex space-x-2">
+          <div className="flex-1 relative">
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Ask about flight information, operations, delays, equipment..."
+              className="w-full bg-indigo-900/50 border border-indigo-600 rounded-lg px-4 py-3 text-white placeholder-indigo-300 focus:outline-none focus:ring-2 focus:ring-aviation-sky focus:border-transparent resize-none"
+              rows={1}
+              style={{ minHeight: '50px', maxHeight: '120px' }}
+            />
+          </div>
+          <button
+            onClick={handleSend}
+            disabled={isLoading || !input.trim()}
+            className="bg-aviation-sky hover:bg-blue-400 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg px-4 py-3 transition-all duration-200 transform hover:scale-105 active:scale-95"
+          >
+            <Send className="h-5 w-5" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+###############################################################################
+import React from 'react';
+import { User, Bot, AlertCircle, Plane } from 'lucide-react';
+import { Message } from '../types';
+import { FlightDataView } from './FlightDataView';
+import ReactMarkdown from 'react-markdown';
+
+interface MessageBubbleProps {
+  message: Message;
+}
+
+export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
+  const isUser = message.isUser;
+
+  return (
+    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} animate-landing`}>
+      <div className={`flex space-x-3 max-w-3xl ${isUser ? 'flex-row-reverse space-x-reverse' : 'flex-row'}`}>
+        {/* Avatar */}
+        <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+          isUser ? 'bg-aviation-sky' : 'bg-indigo-600'
+        }`}>
+          {isUser ? (
+            <User className="h-4 w-4 text-white" />
+          ) : message.type === 'error' ? (
+            <AlertCircle className="h-4 w-4 text-white" />
+          ) : (
+            <Bot className="h-4 w-4 text-white" />
+          )}
+        </div>
+
+        {/* Message Content */}
+        <div className={`rounded-2xl px-4 py-2 ${
+          isUser 
+            ? 'bg-aviation-sky text-white rounded-br-md' 
+            : message.type === 'error'
+            ? 'bg-red-100 border border-red-300 text-red-800 rounded-bl-md'
+            : 'bg-white border border-indigo-100 text-gray-800 rounded-bl-md shadow-sm'
+        }`}>
+          {/* Text Message */}
+          {message.type === 'text' && (
+            <div className="prose prose-sm max-w-none">
+              <ReactMarkdown>{message.text}</ReactMarkdown>
+            </div>
+          )}
+
+          {/* Error Message */}
+          {message.type === 'error' && (
+            <div className="flex items-center space-x-2">
+              <AlertCircle className="h-4 w-4" />
+              <span>{message.text}</span>
+            </div>
+          )}
+
+          {/* Flight Data */}
+          {message.data && (
+            <div className="mt-3 border-t pt-3 border-opacity-20">
+              <FlightDataView data={message.data} />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+#################################################################################
+import React from 'react';
+import { Plane, Clock, Fuel, Users, AlertTriangle, CheckCircle } from 'lucide-react';
+
+interface FlightDataViewProps {
+  data: any;
+}
+
+export const FlightDataView: React.FC<FlightDataViewProps> = ({ data }) => {
+  const renderBasicInfo = (flightData: any) => {
+    const basic = flightData?.flightLegState;
+    if (!basic) return null;
+
+    return (
+      <div className="space-y-2">
+        <h4 className="font-semibold text-indigo-700 flex items-center space-x-2">
+          <Plane className="h-4 w-4" />
+          <span>Flight Information</span>
+        </h4>
+        <div className="grid grid-cols-2 gap-2 text-sm">
+          <div>
+            <span className="text-gray-600">Flight:</span>
+            <span className="ml-2 font-medium">{basic.carrier} {basic.flightNumber}</span>
+          </div>
+          <div>
+            <span className="text-gray-600">Date:</span>
+            <span className="ml-2 font-medium">{basic.dateOfOrigin}</span>
+          </div>
+          <div>
+            <span className="text-gray-600">Route:</span>
+            <span className="ml-2 font-medium">{basic.startStation} → {basic.endStation}</span>
+          </div>
+          <div>
+            <span className="text-gray-600">Status:</span>
+            <span className={`ml-2 font-medium px-2 py-1 rounded-full text-xs ${
+              basic.flightStatus === 'COMPLETED' ? 'bg-green-100 text-green-800' :
+              basic.flightStatus === 'ACTIVE' ? 'bg-blue-100 text-blue-800' :
+              basic.flightStatus === 'SCHEDULED' ? 'bg-yellow-100 text-yellow-800' :
+              'bg-gray-100 text-gray-800'
+            }`}>
+              {basic.flightStatus}
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderDelays = (flightData: any) => {
+    const delays = flightData?.flightLegState?.delays;
+    if (!delays || !Array.isArray(delays) || delays.length === 0) return null;
+
+    return (
+      <div className="space-y-2">
+        <h4 className="font-semibold text-red-700 flex items-center space-x-2">
+          <AlertTriangle className="h-4 w-4" />
+          <span>Delays</span>
+        </h4>
+        {delays.map((delay: any, index: number) => (
+          <div key={index} className="text-sm bg-red-50 p-2 rounded">
+            <div className="font-medium">{delay.reason}</div>
+            <div className="text-gray-600">Duration: {delay.duration} minutes</div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  const renderEquipment = (flightData: any) => {
+    const equipment = flightData?.flightLegState?.equipment;
+    if (!equipment) return null;
+
+    return (
+      <div className="space-y-2">
+        <h4 className="font-semibold text-blue-700">Aircraft Equipment</h4>
+        <div className="grid grid-cols-2 gap-2 text-sm">
+          {equipment.aircraftType && (
+            <div>
+              <span className="text-gray-600">Type:</span>
+              <span className="ml-2 font-medium">{equipment.aircraftType}</span>
+            </div>
+          )}
+          {equipment.aircraftRegistration && (
+            <div>
+              <span className="text-gray-600">Registration:</span>
+              <span className="ml-2 font-medium">{equipment.aircraftRegistration}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  if (!data) return null;
+
+  return (
+    <div className="space-y-4">
+      {renderBasicInfo(data)}
+      {renderEquipment(data)}
+      {renderDelays(data)}
+      
+      {/* Add more sections for fuel, passengers, crew as needed */}
+    </div>
+  );
+};
+###################################################################################
+import React from 'react';
+import { Plane, Clock, Fuel, Users, Wifi, Settings } from 'lucide-react';
+
+interface QuickActionsProps {
+  onActionSelect: (action: string) => void;
+}
+
+const quickActions = [
+  {
+    icon: Plane,
+    label: 'Flight Status',
+    query: 'Get flight status for 6E 215 today',
+    color: 'bg-blue-500 hover:bg-blue-600'
+  },
+  {
+    icon: Clock,
+    label: 'Operations',
+    query: 'Show operation times for Indigo flight 215',
+    color: 'bg-green-500 hover:bg-green-600'
+  },
+  {
+    icon: Fuel,
+    label: 'Fuel Summary',
+    query: 'Get fuel summary for flight 6E 215',
+    color: 'bg-orange-500 hover:bg-orange-600'
+  },
+  {
+    icon: Users,
+    label: 'Passenger Info',
+    query: 'Show passenger information for flight 215',
+    color: 'bg-purple-500 hover:bg-purple-600'
+  },
+  {
+    icon: Settings,
+    label: 'Equipment',
+    query: 'Get equipment details for Indigo flight',
+    color: 'bg-indigo-500 hover:bg-indigo-600'
+  }
+];
+
+export const QuickActions: React.FC<QuickActionsProps> = ({ onActionSelect }) => {
+  return (
+    <div className="border-t border-indigo-700 p-4 bg-indigo-800/20">
+      <div className="flex flex-wrap gap-2 justify-center">
+        {quickActions.map((action, index) => (
+          <button
+            key={index}
+            onClick={() => onActionSelect(action.query)}
+            className={`flex items-center space-x-2 text-white px-3 py-2 rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${action.color}`}
+          >
+            <action.icon className="h-4 w-4" />
+            <span className="text-sm font-medium">{action.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+##############################################################################
+import React from 'react';
+import { Chatbot } from './components/Chatbot';
+import './App.css';
+
+function App() {
+  return (
+    <div className="App">
+      <Chatbot />
+    </div>
+  );
+}
+
+export default App;
+###########################################################################
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+/* Custom aviation-themed scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(30, 64, 175, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(56, 189, 248, 0.5);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(56, 189, 248, 0.7);
+}
+
+/* Smooth transitions */
+* {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Custom animations */
+@keyframes radar-sweep {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.animate-radar-sweep {
+  animation: radar-sweep 2s linear infinite;
+}
+
+/* Gradient backgrounds */
+.bg-aviation-gradient {
+  background: linear-gradient(135deg, #1e40af 0%, #0f172a 100%);
+}
+###############################################################################
+{
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "backend": "cd backend && python main.py"
+  }
+}
+##############################################################################
+VITE_API_BASE_URL=http://localhost:8000
