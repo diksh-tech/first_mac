@@ -1,0 +1,110 @@
+Prompt: What is dep and arr of 215 ?
+ 
+ 
+Prompt: Why 225 was cancelled yesterday?
+
+ 
+ 
+Prompt: Which sectors are critical for us?
+ 
+ 
+Prompt: Give me all flights in last month which were delayed but not cancelled or diverted.
+
+ 
+ 
+Prompt: How many airports are we operating?
+
+ 
+Prompt: Maximum number of flights flown in single day in last 6 months.
+
+ 
+ 
+Prompt: Give me all flights for DEL-BOM-GOI sector 
+
+ 
+ 
+Prompt: How many passengers flown in last 1 month?
+
+ 
+ 
+Prompt: How many flights are flying from Indira Gandhi terminal 1?
+
+ 
+ 
+Prompt: All flights from DEL T2 to BLR T1.
+
+ 
+ 
+Prompt: What is connection time of 2215?
+
+ 
+Prompt: What are flying hours of 2215?
+
+ 
+ 
+Prompt: Why 2215 could not reach to its destination?
+
+ 
+ 
+Prompt: When did VTILK last flew?
+
+ 
+Prompt: Show me flights where passenger booked is less than 100
+
+ 
+ 
+Prompt: How many quantas flight we have today in codeshares?
+
+ 
+ 
+ 
+What was previous tail no of VTLLP?
+What are available slots in Dubai today?
+Can u send message to Dubai flight passengers?
+What are legalities if I delay flight 2215?
+Is there any application which gives real-time information about flights?
+What is dep and arr of 6e-899(flight is gate return)
+When door closed of 899?
+What is load factor on 899?
+Show me otp for all metro stations.
+Who is flying 899 ?
+How many cargo flight we are operating 
+What is carrier code of vistara?
+What is carrier code of British airways?
+How many domestic flight from Delhi airport?
+What is STd and sta of 2215?
+Convert above timings into local.
+Give me flights flying out from banglore between 2-5am( user always gives local time)
+Is flight 2215 gone to AMD?(is it diverted?
+Is there any flight whose door was closed 5 mins back?
+Give me flight details of all flights from maa.
+Give me flights which don't have aircraft assigned 
+Give me all AOG list 
+Give me flights which were delayed because of technical reasons.
+All flights to Chennai in next 3 hours.
+How many 232 seater are flying today?
+All flights which have AMD as leg in flight route.
+Show me flights which don't have any codeshare flights.
+All flights which don't have next leg.
+Give me all flights which are diverted to AMD 
+What is TAT for BLR?
+Check if any slot is canceled today
+Tell me all wet lease aircraft details
+How many male and female passengers on flight 2215
+Analyse variance of flying time from del to bom all flights in last 1 month
+How many training flights today
+List all flights which are eligible for OTP and OTT
+All flights which has achieved otp 
+All stations where otp is more than 90%
+Tell me all aircraft except assigned on international routes.
+When is vtllp landing?
+Which route has max number of legs?
+Which flight is doing max length in single leg?
+Top 5 most delayed flights
+Who is airport manager at Delhi terminal 1?
+How many base flights are delayed today?
+How many flights are coming at BLR T1 and taking off from there?
+Show all flights which are overbooked.
+Postpone all departing and arriving flight on Delhi terminal 1
+ 
+these questions i framed fewmonths back
