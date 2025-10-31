@@ -1,0 +1,111 @@
+@mcp.tool()
+async def get_flight_statistics(carrier: str = "", flight_number: str = "", date_of_origin: str = "") -> str:
+    """
+    Get comprehensive flight statistics including OTP performance, turnaround times, and operational metrics.
+    
+    Args:
+        carrier: Airline carrier code
+        flight_number: Flight number as string
+        date_of_origin: Date in YYYY-MM-DD format
+    """
+    logger.info(f"get_flight_statistics: carrier={carrier}, flight_number={flight_number}, date={date_of_origin}")
+    
+    fn = normalize_flight_number(flight_number) if flight_number else None
+    dob = validate_date(date_of_origin) if date_of_origin else None
+    
+    query = make_query(carrier, fn, dob)
+    
+    projection = {
+        "flightLegState.carrier": 1,
+        "flightLegState.flightNumber": 1,
+        "flightLegState.dateOfOrigin": 1,
+        "flightLegState.startStation": 1,
+        "flightLegState.endStation": 1,
+        
+        # OTP (On-Time Performance) Metrics
+        "flightLegState.isOTPAchieved": 1,
+        "flightLegState.isOTPConsidered": 1,
+        "flightLegState.isOTPFlight": 1,
+        "flightLegState.isOTTAchievedFlight": 1,
+        "flightLegState.isOTTFlight": 1,
+        
+        # Timing Statistics
+        "flightLegState.scheduledStartTime": 1,
+        "flightLegState.scheduledEndTime": 1,
+        "flightLegState.operation.actualTimes": 1,
+        "flightLegState.operation.estimatedTimes": 1,
+        "flightLegState.blockTimeSch": 1,
+        "flightLegState.blockTimeActual": 1,
+        "flightLegState.flightHoursActual": 1,
+        "flightLegState.taxiInTime": 1,
+        "flightLegState.taxiOutTime": 1,
+        
+        # Turnaround Statistics
+        "flightLegState.turnTimeFlightAfter": 1,
+        "flightLegState.turnTimeFlightBeforeActual": 1,
+        "flightLegState.turnTimeFlightBeforeSch": 1,
+        
+        # Delay Statistics
+        "flightLegState.delays.total": 1,
+        "flightLegState.delays.delay": 1,
+        "flightLegState.delays.delayLimit": 1,
+        
+        # Operational Status
+        "flightLegState.flightStatus": 1,
+        "flightLegState.operationalStatus": 1,
+        "flightLegState.cancellationCode": 1,
+        
+        # Passenger Statistics
+        "flightLegState.pax.passengerCount": 1,
+        
+        # Equipment Utilization
+        "flightLegState.equipment.tailLock": 1,
+        "flightLegState.equipment.aircraftRegistration": 1
+    }
+    
+    return await _fetch_one_async(query, projection)
+#######################################################################
+# tool_registry.py
+
+TOOLS = {
+    "get_flight_basic_info": {
+        "args": ["carrier", "flight_number", "date_of_origin"],
+        "desc": "Fetch basic flight information including carrier, flight number, stations, scheduled times, and flight status.",
+    },
+    "get_flight_statistics": {
+        "args": ["carrier", "flight_number", "date_of_origin"],
+        "desc": "Get comprehensive flight statistics including OTP performance, turnaround times, delays, and operational metrics.",
+    },
+    "get_equipment_info": {
+        "args": ["carrier", "flight_number", "date_of_origin"],
+        "desc": "Get aircraft equipment details: aircraft type, tail number (registration), and configuration.",
+    },
+    "get_operation_times": {
+        "args": ["carrier", "flight_number", "date_of_origin"],
+        "desc": "Return estimated and actual operation times: takeoff, landing, departure, arrival, and block times.",
+    },
+    "get_fuel_summary": {
+        "args": ["carrier", "flight_number", "date_of_origin"],
+        "desc": "Retrieve fuel summary including planned vs actual fuel consumption for the flight.",
+    },
+    "get_delay_summary": {
+        "args": ["carrier", "flight_number", "date_of_origin"],
+        "desc": "Get delay information including delay reasons, durations, and total delay time.",
+    },
+    "get_passenger_info": {
+        "args": ["carrier", "flight_number", "date_of_origin"],
+        "desc": "Get passenger count and connection information for the flight.",
+    },
+    "get_crew_info": {
+        "args": ["carrier", "flight_number", "date_of_origin"],
+        "desc": "Get crew connections and details for the flight.",
+    },
+    "health_check": {
+        "args": [],
+        "desc": "Check the health status of the MCP server and database connection.",
+    },
+    "raw_mongodb_query": {
+        "args": ["query_json", "limit"],
+        "desc": "Run a raw MongoDB query (JSON format) for debugging purposes.",
+    },
+}
